@@ -140,22 +140,121 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
   return changes;
 }
 
+// ── 헬퍼: 자연어 변환 유틸 ───────────────────────────────────────────────────
+
+// '"A" / "B" / "C"' 에서 마지막 노드 이름 반환
+function lastSeg(path: string): string {
+  const m = path.match(/"([^"]+)"/g);
+  return m ? m[m.length - 1].replace(/"/g, '') : path;
+}
+
+// 직계 부모 이름 반환 (없으면 null)
+function parentSeg(path: string): string | null {
+  const m = path.match(/"([^"]+)"/g);
+  return m && m.length >= 2 ? m[m.length - 2].replace(/"/g, '') : null;
+}
+
+// details 배열에서 노드 유형 추출
+function typeLabel(details: string[]): string {
+  const d = details.find(x => x.startsWith('유형:'));
+  return d ? d.slice(4).trim() : '요소';
+}
+
+// 한국어 주격 조사 — 단어 끝음절 종성 유무로 이/가 결정
+function ga(word: string): string {
+  const code = word.charCodeAt(word.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) return '가';
+  return (code - 0xAC00) % 28 === 0 ? '가' : '이';
+}
+
+function addedSentence(c: Change): string {
+  const name   = lastSeg(c.path);
+  const parent = parentSeg(c.path);
+  const type   = typeLabel(c.details);
+  const p      = ga(type);
+  if (parent) return `"${name}" ${type}${p} "${parent}" 안에 추가되었습니다.`;
+  return `"${name}" ${type}${p} 추가되었습니다.`;
+}
+
+function removedSentence(c: Change): string {
+  const name = lastSeg(c.path);
+  const type = typeLabel(c.details);
+  const p    = ga(type);
+  return `"${name}" ${type}${p} 삭제되었습니다.`;
+}
+
+function changedSentences(c: Change): string[] {
+  const name   = lastSeg(c.path);
+  const result: string[] = [];
+
+  for (const detail of c.details) {
+    if (detail.startsWith('텍스트:')) {
+      const m = detail.match(/텍스트: "([^"]*)" → "([^"]*)"/);
+      result.push(m
+        ? `"${name}"의 텍스트가 "${m[1]}"에서 "${m[2]}"로 수정되었습니다.`
+        : `"${name}"의 텍스트 내용이 변경되었습니다.`);
+
+    } else if (detail.startsWith('크기:')) {
+      const m = detail.match(/크기: (\d+)×(\d+) → (\d+)×(\d+)/);
+      result.push(m
+        ? `"${name}"의 크기가 ${m[1]}×${m[2]}에서 ${m[3]}×${m[4]}로 조정되었습니다.`
+        : `"${name}"의 크기가 변경되었습니다.`);
+
+    } else if (detail.startsWith('위치:')) {
+      const m = detail.match(/위치: \((-?\d+), (-?\d+)\) → \((-?\d+), (-?\d+)\)/);
+      result.push(m
+        ? `"${name}"의 위치가 (${m[1]}, ${m[2]})에서 (${m[3]}, ${m[4]})로 이동했습니다.`
+        : `"${name}"의 위치가 변경되었습니다.`);
+
+    } else if (detail.startsWith('이름:')) {
+      const m = detail.match(/이름: "([^"]+)" → "([^"]+)"/);
+      result.push(m
+        ? `"${m[1]}"의 이름이 "${m[2]}"로 변경되었습니다.`
+        : `"${name}"의 이름이 변경되었습니다.`);
+
+    } else {
+      result.push(`"${name}"에서 변경이 감지되었습니다: ${detail}`);
+    }
+  }
+  return result;
+}
+
 // ── 헬퍼: 히스토리 포맷팅 ────────────────────────────────────────────────────
 
 function formatHistory(changes: Change[], targetName: string, ts: string): string {
   const bar1 = '═'.repeat(44);
   const bar2 = '─'.repeat(44);
-  const lines = ['', bar1, `세션 기록: ${ts}`, `대상: "${targetName}"`, bar1];
+
+  const added    = changes.filter(c => c.kind === 'ADDED');
+  const removed  = changes.filter(c => c.kind === 'REMOVED');
+  const modified = changes.filter(c => c.kind === 'CHANGED');
+
+  const lines: string[] = ['', bar1, `세션 기록: ${ts}`, `대상: "${targetName}"`, bar1, ''];
 
   if (changes.length === 0) {
-    lines.push('변경 사항 없음');
+    lines.push('이번 세션에서 변경된 내용이 없습니다.');
   } else {
-    const label = { ADDED: '[추가]', REMOVED: '[삭제]', CHANGED: '[변경]' } as const;
-    for (const c of changes) {
-      lines.push(`${label[c.kind]} ${c.path}`);
-      for (const d of c.details) lines.push(`  └ ${d}`);
+    lines.push(`이번 세션에서 총 ${changes.length}건의 변경이 감지되었습니다.`, '');
+
+    if (added.length > 0) {
+      lines.push(`[신규 추가 — ${added.length}건]`);
+      added.forEach(c => lines.push('  • ' + addedSentence(c)));
+      lines.push('');
+    }
+
+    if (removed.length > 0) {
+      lines.push(`[삭제 — ${removed.length}건]`);
+      removed.forEach(c => lines.push('  • ' + removedSentence(c)));
+      lines.push('');
+    }
+
+    if (modified.length > 0) {
+      lines.push(`[속성 변경 — ${modified.length}건]`);
+      modified.forEach(c => changedSentences(c).forEach(s => lines.push('  • ' + s)));
+      lines.push('');
     }
   }
+
   lines.push(bar2);
   return lines.join('\n');
 }
