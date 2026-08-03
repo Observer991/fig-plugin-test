@@ -43,10 +43,28 @@ app.post('/log', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('');
   console.log('Work Logger 서버 실행 중');
   console.log(`주소: http://localhost:${PORT}`);
   console.log('Figma 플러그인에서 [연결 테스트]를 눌러 확인하세요.');
   console.log('');
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error('');
+    console.error(`[오류] 포트 ${PORT}가 이미 사용 중입니다.`);
+    console.error(`       다른 Work Logger 서버가 실행 중이거나,`);
+    console.error(`       다른 프로그램이 해당 포트를 점유하고 있습니다.`);
+    console.error('');
+    console.error('해결 방법:');
+    console.error(`  1. 이미 실행 중인 서버를 사용하세요 (http://localhost:${PORT})`);
+    console.error(`  2. 다른 포트로 실행: PORT=3001 node server/index.js`);
+    console.error('');
+    process.exit(1);
+  } else {
+    console.error('[오류]', err.message);
+    process.exit(1);
+  }
 });
