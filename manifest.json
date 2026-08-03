@@ -4,5 +4,9 @@
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "src/ui.html",
-  "editorType": ["figma"]
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["http://localhost:3000"],
+    "reasoning": "로컬 서버에 연결하여 작업 로그를 디스크에 기록합니다"
+  }
 }
