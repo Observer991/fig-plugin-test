@@ -1,0 +1,23 @@
+{
+  "name": "fig-work-logger",
+  "version": "1.0.0",
+  "description": "피그마 작업 내용을 로컬 파일로 기록하는 플러그인",
+  "scripts": {
+    "build": "webpack --mode production",
+    "watch": "webpack --watch --mode development",
+    "server": "node server/index.js",
+    "dev": "concurrently \"npm run watch\" \"npm run server\""
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "*",
+    "concurrently": "^8.2.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.3.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.0"
+  }
+}
