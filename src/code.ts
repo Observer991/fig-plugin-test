@@ -1,167 +1,297 @@
+// ── 타입 ─────────────────────────────────────────────────────────────────────
+
+interface NodeSnap {
+  id:   string;
+  name: string;
+  type: string;
+  x: number; y: number;
+  w: number; h: number;
+  text?: string;
+  children?: NodeSnap[];
+}
+
+interface Change {
+  kind: 'ADDED' | 'REMOVED' | 'CHANGED';
+  path: string;
+  details: string[];
+}
+
+// ── 상수 ─────────────────────────────────────────────────────────────────────
+
 const NODE_TYPE_KR: Record<string, string> = {
-  FRAME: '프레임',
-  GROUP: '그룹',
-  TEXT: '텍스트',
-  RECTANGLE: '사각형',
-  ELLIPSE: '원',
-  LINE: '선',
-  VECTOR: '벡터',
-  COMPONENT: '컴포넌트',
-  COMPONENT_SET: '컴포넌트 세트',
-  INSTANCE: '인스턴스',
-  BOOLEAN_OPERATION: '불린 연산',
-  STAR: '별',
-  POLYGON: '다각형',
-  SECTION: '섹션',
+  FRAME: '프레임', GROUP: '그룹', TEXT: '텍스트', RECTANGLE: '사각형',
+  ELLIPSE: '원', LINE: '선', VECTOR: '벡터', COMPONENT: '컴포넌트',
+  COMPONENT_SET: '컴포넌트 세트', INSTANCE: '인스턴스', SECTION: '섹션',
+  BOOLEAN_OPERATION: '불린 연산', STAR: '별', POLYGON: '다각형',
 };
 
-const PROP_KR: Record<string, string> = {
-  name: '이름',
-  width: '너비',
-  height: '높이',
-  x: 'X 위치',
-  y: 'Y 위치',
-  fills: '채우기',
-  strokes: '선',
-  effects: '효과',
-  opacity: '불투명도',
-  visible: '표시 여부',
-  locked: '잠금',
-  characters: '텍스트 내용',
-  fontSize: '글자 크기',
-  fontName: '글꼴',
-  cornerRadius: '모서리 반경',
-  layoutMode: '레이아웃 모드',
-  rotation: '회전',
-  blendMode: '혼합 모드',
-  constraints: '제약 조건',
-};
+// ── 상태 ─────────────────────────────────────────────────────────────────────
 
-let isRecording = false;
-let filePath    = '';
-let serverUrl   = 'http://localhost:3000';
+let isRecording      = false;
+let targetNodeId:    string | null = null;
+let textLayerNodeId: string | null = null;
+let beforeSnapshot:  NodeSnap | null = null;
 
-figma.showUI(__html__, {
-  width: 360,
-  height: 540,
-  title: 'Work Logger',
-});
+// ── UI 초기화 ─────────────────────────────────────────────────────────────────
 
-// 저장된 설정 불러오기
+figma.showUI(__html__, { width: 380, height: 520, title: 'Work Logger' });
+
 (async () => {
-  const savedServerUrl = await figma.clientStorage.getAsync('serverUrl') as string | undefined;
-  const savedFilePath  = await figma.clientStorage.getAsync('filePath')  as string | undefined;
-  figma.ui.postMessage({
-    type: 'init-settings',
-    serverUrl: savedServerUrl ?? 'http://localhost:3000',
-    filePath:  savedFilePath  ?? '',
-  });
+  const savedTarget    = await figma.clientStorage.getAsync('targetUrl')    as string | undefined;
+  const savedTextLayer = await figma.clientStorage.getAsync('textLayerUrl') as string | undefined;
+  figma.ui.postMessage({ type: 'init-settings', targetUrl: savedTarget ?? '', textLayerUrl: savedTextLayer ?? '' });
 })();
 
-function isSceneNode(node: SceneNode | RemovedNode): node is SceneNode {
-  return 'name' in node;
+// ── 헬퍼: Figma URL → node-id 변환 ───────────────────────────────────────────
+
+function parseNodeId(input: string): string | null {
+  try {
+    const url    = new URL(input.trim());
+    const nodeId = url.searchParams.get('node-id');
+    if (!nodeId) return null;
+    // URL 포맷(1-2) → API 포맷(1:2)
+    return nodeId.replace(/-/g, ':');
+  } catch {
+    const t = input.trim();
+    if (/^\d+:\d+$/.test(t)) return t;
+    if (/^\d+-\d+$/.test(t)) return t.replace('-', ':');
+    return null;
+  }
 }
 
-function getPageName(node: SceneNode): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let n: any = node;
-  while (n) {
-    if (n.type === 'PAGE') return n.name as string;
-    n = n.parent ?? null;
+// ── 헬퍼: 스냅샷 ─────────────────────────────────────────────────────────────
+
+function snapNode(node: SceneNode): NodeSnap {
+  const snap: NodeSnap = {
+    id:   node.id,
+    name: node.name,
+    type: node.type,
+    x: Math.round(node.x),
+    y: Math.round(node.y),
+    w: 'width'  in node ? Math.round((node as LayoutMixin).width)  : 0,
+    h: 'height' in node ? Math.round((node as LayoutMixin).height) : 0,
+  };
+  if (node.type === 'TEXT') snap.text = (node as TextNode).characters;
+  if ('children' in node) {
+    snap.children = (node as ChildrenMixin).children
+      .map(c => snapNode(c as SceneNode));
   }
-  return '(알 수 없음)';
+  return snap;
 }
+
+// ── 헬퍼: 스냅샷 평탄화 (id → {snap, path}) ──────────────────────────────────
+
+function flatten(snap: NodeSnap, parentPath = ''): Map<string, { snap: NodeSnap; path: string }> {
+  const map  = new Map<string, { snap: NodeSnap; path: string }>();
+  const path = parentPath ? `${parentPath} / "${snap.name}"` : `"${snap.name}"`;
+  map.set(snap.id, { snap, path });
+  for (const child of snap.children ?? []) {
+    for (const [id, val] of flatten(child, path)) map.set(id, val);
+  }
+  return map;
+}
+
+// ── 헬퍼: 스냅샷 비교 ────────────────────────────────────────────────────────
+
+function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
+  const bMap = flatten(before);
+  const aMap = flatten(after);
+  const changes: Change[] = [];
+
+  // 추가된 노드
+  for (const [id, { snap: a, path }] of aMap) {
+    if (!bMap.has(id)) {
+      changes.push({ kind: 'ADDED', path, details: [`유형: ${NODE_TYPE_KR[a.type] ?? a.type}`] });
+    }
+  }
+
+  // 삭제된 노드
+  for (const [id, { snap: b, path }] of bMap) {
+    if (!aMap.has(id)) {
+      changes.push({ kind: 'REMOVED', path, details: [`유형: ${NODE_TYPE_KR[b.type] ?? b.type}`] });
+    }
+  }
+
+  // 변경된 노드 (이름·위치·크기·텍스트)
+  for (const [id, { snap: b }] of bMap) {
+    const aEntry = aMap.get(id);
+    if (!aEntry) continue;
+    const { snap: a, path } = aEntry;
+    const diffs: string[] = [];
+
+    if (b.name !== a.name)
+      diffs.push(`이름: "${b.name}" → "${a.name}"`);
+    if (b.x !== a.x || b.y !== a.y)
+      diffs.push(`위치: (${b.x}, ${b.y}) → (${a.x}, ${a.y})`);
+    if (b.w !== a.w || b.h !== a.h)
+      diffs.push(`크기: ${b.w}×${b.h} → ${a.w}×${a.h}`);
+    if (b.text !== undefined && b.text !== a.text) {
+      const clip = (s: string) => s.length > 40 ? s.slice(0, 40) + '…' : s;
+      diffs.push(`텍스트: "${clip(b.text)}" → "${clip(a.text ?? '')}"`);
+    }
+
+    if (diffs.length > 0) changes.push({ kind: 'CHANGED', path, details: diffs });
+  }
+
+  return changes;
+}
+
+// ── 헬퍼: 히스토리 포맷팅 ────────────────────────────────────────────────────
+
+function formatHistory(changes: Change[], targetName: string, ts: string): string {
+  const bar1 = '═'.repeat(44);
+  const bar2 = '─'.repeat(44);
+  const lines = ['', bar1, `세션 기록: ${ts}`, `대상: "${targetName}"`, bar1];
+
+  if (changes.length === 0) {
+    lines.push('변경 사항 없음');
+  } else {
+    const label = { ADDED: '[추가]', REMOVED: '[삭제]', CHANGED: '[변경]' } as const;
+    for (const c of changes) {
+      lines.push(`${label[c.kind]} ${c.path}`);
+      for (const d of c.details) lines.push(`  └ ${d}`);
+    }
+  }
+  lines.push(bar2);
+  return lines.join('\n');
+}
+
+// ── 헬퍼: 텍스트 레이어 폰트 일괄 로드 ──────────────────────────────────────
+
+async function loadAllFontsForNode(textNode: TextNode): Promise<void> {
+  const len = textNode.characters.length;
+  if (len === 0) {
+    await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+    return;
+  }
+  const seen = new Set<string>();
+  const fonts: FontName[] = [];
+  for (let i = 0; i < len; i++) {
+    const fn = textNode.getRangeFontName(i, i + 1);
+    if (fn !== figma.mixed) {
+      const f = fn as FontName;
+      const key = `${f.family}::${f.style}`;
+      if (!seen.has(key)) { seen.add(key); fonts.push(f); }
+    }
+  }
+  if (fonts.length === 0) {
+    await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+  } else {
+    await Promise.all(fonts.map(f => figma.loadFontAsync(f)));
+  }
+}
+
+// ── 헬퍼: 텍스트 레이어에 히스토리 추가 ─────────────────────────────────────
+
+async function appendHistory(nodeId: string, content: string): Promise<void> {
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) throw new Error('텍스트 레이어를 찾을 수 없습니다.');
+  if (node.type !== 'TEXT') throw new Error(`선택한 노드가 텍스트 레이어가 아닙니다 (유형: ${node.type})`);
+
+  const textNode = node as TextNode;
+  await loadAllFontsForNode(textNode);
+
+  const existing = textNode.characters;
+  textNode.characters = existing ? existing + content : content;
+}
+
+// ── 헬퍼: 타임스탬프 ─────────────────────────────────────────────────────────
 
 function getTimestamp(): string {
   return new Date().toLocaleString('ko-KR', {
     year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   });
 }
 
-function formatChange(change: DocumentChange): string | null {
-  const ts = getTimestamp();
-  try {
-    switch (change.type) {
-      case 'CREATE': {
-        if (!isSceneNode(change.node)) return null;
-        const typeName = NODE_TYPE_KR[change.node.type] ?? change.node.type;
-        return `[${ts}] [생성] "${change.node.name}" (${typeName}) - 페이지: ${getPageName(change.node)}`;
-      }
-      case 'DELETE': {
-        if (!isSceneNode(change.node)) return `[${ts}] [삭제] (노드 정보 없음)`;
-        const typeName = NODE_TYPE_KR[change.node.type] ?? change.node.type;
-        return `[${ts}] [삭제] "${change.node.name}" (${typeName}) - 페이지: ${getPageName(change.node)}`;
-      }
-      case 'PROPERTY_CHANGE': {
-        if (!isSceneNode(change.node)) return null;
-        const typeName = NODE_TYPE_KR[change.node.type] ?? change.node.type;
-        const props = (change.properties as string[]).map(p => PROP_KR[p] ?? p).join(', ');
-        return `[${ts}] [변경] "${change.node.name}" (${typeName}) - 속성: ${props} - 페이지: ${getPageName(change.node)}`;
-      }
-      case 'STYLE_CREATE':
-        return `[${ts}] [스타일 생성] "${change.style?.name ?? '이름 없음'}"`;
-      case 'STYLE_DELETE':
-        return `[${ts}] [스타일 삭제]`;
-      case 'STYLE_PROPERTY_CHANGE':
-        return `[${ts}] [스타일 변경] "${change.style?.name ?? '이름 없음'}"`;
-      default:
-        return null;
-    }
-  } catch {
-    return `[${ts}] [변경 감지] (상세 정보 접근 불가)`;
-  }
-}
-
-// 변경 항목을 UI로 전달 — UI가 서버에 직접 fetch
-function relayLog(entry: string): void {
-  figma.ui.postMessage({ type: 'send-log', entry });
-}
-
-figma.on('documentchange', (event: DocumentChangeEvent) => {
-  if (!isRecording) return;
-  for (const change of event.documentChanges) {
-    const entry = formatChange(change);
-    if (entry) relayLog(entry);
-  }
-});
+// ── UI 메시지 핸들러 ──────────────────────────────────────────────────────────
 
 figma.ui.onmessage = async (msg: {
   type: string;
-  filePath?: string;
-  serverUrl?: string;
+  url?: string;
+  field?: string;
+  targetUrl?: string;
+  textLayerUrl?: string;
 }) => {
   switch (msg.type) {
-    case 'start-recording': {
-      filePath  = msg.filePath  ?? '';
-      serverUrl = msg.serverUrl ?? 'http://localhost:3000';
-      await figma.clientStorage.setAsync('serverUrl', serverUrl);
-      await figma.clientStorage.setAsync('filePath',  filePath);
-      isRecording = true;
-      const ts = getTimestamp();
-      relayLog(`\n${'='.repeat(60)}\n기록 시작: ${ts}\n${'='.repeat(60)}\n`);
-      figma.ui.postMessage({ type: 'recording-started' });
-      break;
-    }
-    case 'stop-recording': {
-      isRecording = false;
-      relayLog(`기록 종료: ${getTimestamp()}\n${'='.repeat(60)}\n`);
-      figma.ui.postMessage({ type: 'recording-stopped' });
-      break;
-    }
-    case 'save-settings': {
-      await figma.clientStorage.setAsync('serverUrl', msg.serverUrl ?? 'http://localhost:3000');
-      await figma.clientStorage.setAsync('filePath',  msg.filePath  ?? '');
-      break;
-    }
-    case 'close': {
-      if (isRecording) {
-        isRecording = false;
-        relayLog(`기록 종료 (플러그인 닫힘): ${getTimestamp()}\n${'='.repeat(60)}\n`);
+
+    // URL 유효성 검사 + 노드 정보 반환
+    case 'validate-node': {
+      const nodeId = parseNodeId(msg.url ?? '');
+      if (!nodeId) {
+        figma.ui.postMessage({ type: 'validate-result', field: msg.field, ok: false, error: '유효한 Figma URL이 아닙니다.' });
+        return;
       }
+      const node = await figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        figma.ui.postMessage({ type: 'validate-result', field: msg.field, ok: false, error: '노드를 찾을 수 없습니다. URL을 다시 확인하세요.' });
+        return;
+      }
+      if (msg.field === 'textLayer' && node.type !== 'TEXT') {
+        figma.ui.postMessage({ type: 'validate-result', field: msg.field, ok: false, error: `텍스트 레이어가 아닙니다 (유형: ${node.type})` });
+        return;
+      }
+      figma.ui.postMessage({
+        type: 'validate-result', field: msg.field, ok: true,
+        nodeId, nodeName: (node as SceneNode).name, nodeType: node.type,
+      });
+      break;
+    }
+
+    // 기록 시작: 스냅샷 촬영
+    case 'start-recording': {
+      const tNodeId  = parseNodeId(msg.targetUrl   ?? '');
+      const tlNodeId = parseNodeId(msg.textLayerUrl ?? '');
+      if (!tNodeId || !tlNodeId) {
+        figma.ui.postMessage({ type: 'error', message: '두 URL을 모두 확인해주세요.' });
+        return;
+      }
+      const node = await figma.getNodeByIdAsync(tNodeId);
+      if (!node) {
+        figma.ui.postMessage({ type: 'error', message: '대상 노드에 접근할 수 없습니다.' });
+        return;
+      }
+
+      targetNodeId    = tNodeId;
+      textLayerNodeId = tlNodeId;
+      await figma.clientStorage.setAsync('targetUrl',    msg.targetUrl    ?? '');
+      await figma.clientStorage.setAsync('textLayerUrl', msg.textLayerUrl ?? '');
+
+      beforeSnapshot = snapNode(node as SceneNode);
+      isRecording    = true;
+      figma.ui.postMessage({ type: 'recording-started', targetName: (node as SceneNode).name });
+      break;
+    }
+
+    // 기록 종료: 비교 후 텍스트 레이어에 기록
+    case 'stop-recording': {
+      if (!isRecording || !beforeSnapshot || !targetNodeId || !textLayerNodeId) {
+        figma.ui.postMessage({ type: 'error', message: '기록이 시작되지 않았습니다.' });
+        return;
+      }
+      const node = await figma.getNodeByIdAsync(targetNodeId);
+      if (!node) {
+        figma.ui.postMessage({ type: 'error', message: '대상 노드를 찾을 수 없습니다.' });
+        return;
+      }
+
+      const afterSnapshot = snapNode(node as SceneNode);
+      const changes       = compareSnapshots(beforeSnapshot, afterSnapshot);
+      const historyText   = formatHistory(changes, afterSnapshot.name, getTimestamp());
+
+      try {
+        await appendHistory(textLayerNodeId, historyText);
+        isRecording    = false;
+        beforeSnapshot = null;
+        figma.ui.postMessage({ type: 'recording-stopped', changeCount: changes.length, history: historyText });
+      } catch (err) {
+        figma.ui.postMessage({ type: 'error', message: (err as Error).message });
+      }
+      break;
+    }
+
+    case 'close':
       figma.closePlugin();
       break;
-    }
   }
 };

@@ -4,14 +4,13 @@
   <meta charset="UTF-8" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 12px; color: #1e1e1e; background: #fff;
-      height: 540px; display: flex; flex-direction: column; overflow: hidden;
+      height: 520px; display: flex; flex-direction: column; overflow: hidden;
     }
 
-    /* ── Header ── */
+    /* Header */
     .header {
       display: flex; align-items: center; gap: 8px;
       padding: 11px 16px; border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
@@ -19,264 +18,277 @@
     .header-title { font-weight: 600; font-size: 13px; }
     .record-dot {
       width: 8px; height: 8px; border-radius: 50%;
-      background: #d0d0d0; flex-shrink: 0; transition: background 0.3s;
+      background: #d0d0d0; flex-shrink: 0; transition: background .3s;
     }
     .record-dot.active { background: #f24822; animation: pulse 1.4s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
-    /* ── Section ── */
+    /* Section */
     .section { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
     .section-label {
       font-size: 10px; font-weight: 600; color: #999;
       text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
     }
 
-    /* ── Input ── */
-    .input-row { display: flex; gap: 6px; align-items: center; }
+    /* URL row */
+    .url-row { display: flex; gap: 6px; align-items: center; }
     input[type="text"] {
       flex: 1; height: 28px; padding: 0 8px;
       border: 1px solid #e5e5e5; border-radius: 4px;
       font-size: 11px; font-family: inherit; color: #1e1e1e;
-      background: #fafafa; outline: none; transition: border-color .15s, background .15s;
+      background: #fafafa; outline: none; transition: border-color .15s;
     }
     input[type="text"]:focus  { border-color: #0c8ce9; background: #fff; }
     input[type="text"]:disabled { opacity: .45; cursor: not-allowed; }
-    .hint { font-size: 10px; color: #bbb; margin-top: 5px; }
 
-    /* ── Button ── */
+    /* Node status badge */
+    .node-status {
+      margin-top: 5px; font-size: 10px;
+      display: flex; align-items: center; gap: 4px; min-height: 14px;
+    }
+    .node-status .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .node-status.ok   .dot { background: #14ae5c; }
+    .node-status.err  .dot { background: #f24822; }
+    .node-status.idle .dot { background: #d0d0d0; }
+    .node-status.ok  { color: #14ae5c; }
+    .node-status.err { color: #f24822; }
+    .node-status.idle{ color: #aaa; }
+
+    /* Button */
     .btn {
       height: 28px; padding: 0 10px; border: none; border-radius: 4px;
       font-size: 11px; font-family: inherit; font-weight: 500;
-      cursor: pointer; white-space: nowrap; transition: opacity .15s;
+      cursor: pointer; white-space: nowrap; transition: opacity .15s; flex-shrink: 0;
     }
-    .btn:hover:not(:disabled)  { opacity: .82; }
-    .btn:active:not(:disabled) { opacity: .65; }
+    .btn:hover:not(:disabled) { opacity: .82; }
+    .btn:active:not(:disabled){ opacity: .65; }
     .btn:disabled { opacity: .38; cursor: not-allowed; }
-    .btn-secondary { background: #f0f0f0; color: #1e1e1e; }
-    .btn-primary   { background: #0c8ce9; color: #fff; }
-    .btn-danger    { background: #f24822; color: #fff; }
+    .btn-ghost   { background: #f0f0f0; color: #1e1e1e; }
+    .btn-primary { background: #0c8ce9; color: #fff; }
+    .btn-danger  { background: #f24822; color: #fff; }
 
-    /* ── Connection status ── */
-    .conn-status { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-    .status-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #d0d0d0; flex-shrink: 0;
-    }
-    .status-dot.connected    { background: #14ae5c; }
-    .status-dot.disconnected { background: #f24822; }
-    .status-label { font-size: 10px; color: #999; }
-
-    /* ── Control ── */
+    /* Control */
     .control-section { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
     .btn-record { width: 100%; height: 36px; font-size: 13px; font-weight: 600; border-radius: 6px; }
-    .record-status { text-align: center; font-size: 10px; color: #aaa; margin-top: 7px; min-height: 14px; }
+    .ctrl-status { text-align: center; font-size: 10px; color: #aaa; margin-top: 6px; min-height: 14px; }
 
-    /* ── Activity log ── */
-    .log-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .log-header {
+    /* Result */
+    .result-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .result-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 7px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
     }
-    .log-header-title {
+    .result-title {
       font-size: 10px; font-weight: 600; color: #999;
       text-transform: uppercase; letter-spacing: .5px;
     }
-    .log-count { font-size: 10px; color: #bbb; }
-    .log-entries { flex: 1; overflow-y: auto; padding: 4px 16px 8px; }
-    .log-entry {
-      padding: 3px 0; font-size: 10px;
-      font-family: 'Consolas','Menlo','Monaco',monospace;
-      line-height: 1.5; border-bottom: 1px solid #f8f8f8; word-break: break-all;
+    .result-badge { font-size: 10px; color: #bbb; }
+    .result-body { flex: 1; overflow-y: auto; padding: 6px 16px 8px; }
+    .result-text {
+      font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
+      font-size: 10px; line-height: 1.6; color: #444;
+      white-space: pre-wrap; word-break: break-all;
     }
-    .log-entry.create { color: #14ae5c; }
-    .log-entry.delete { color: #f24822; }
-    .log-entry.change { color: #0c8ce9; }
-    .log-entry.system { color: #aaa; font-style: italic; }
-    .log-entry.error  { color: #f24822; font-style: italic; }
-    .log-empty { text-align: center; color: #ccc; font-size: 11px; padding: 28px 0; }
+    .result-empty { text-align: center; color: #ccc; font-size: 11px; padding: 24px 0; }
+    .result-err   { color: #f24822; font-size: 11px; }
   </style>
 </head>
 <body>
 
+  <!-- Header -->
   <div class="header">
     <div class="record-dot" id="recordDot"></div>
     <div class="header-title">Work Logger</div>
   </div>
 
+  <!-- 모니터링 대상 URL -->
   <div class="section">
-    <div class="section-label">서버 설정</div>
-    <div class="input-row">
-      <input type="text" id="serverUrl" placeholder="http://localhost:3000" />
-      <button class="btn btn-secondary" id="btnTest">연결 테스트</button>
-      <div class="conn-status">
-        <div class="status-dot" id="statusDot"></div>
-        <span class="status-label" id="statusLabel">-</span>
-      </div>
+    <div class="section-label">모니터링 대상 (프레임 / 섹션 URL)</div>
+    <div class="url-row">
+      <input type="text" id="targetUrl" placeholder="https://www.figma.com/design/…?node-id=…" />
+      <button class="btn btn-ghost" id="btnValidateTarget">확인</button>
+    </div>
+    <div class="node-status idle" id="targetStatus">
+      <div class="dot"></div><span id="targetStatusText">URL을 입력하고 확인하세요</span>
     </div>
   </div>
 
+  <!-- 기록 텍스트 레이어 URL -->
   <div class="section">
-    <div class="section-label">저장 경로</div>
-    <div class="input-row">
-      <input type="text" id="filePath" placeholder="C:\Users\user\work-log.txt" />
+    <div class="section-label">기록 레이어 (텍스트 레이어 URL)</div>
+    <div class="url-row">
+      <input type="text" id="textLayerUrl" placeholder="https://www.figma.com/design/…?node-id=…" />
+      <button class="btn btn-ghost" id="btnValidateLayer">확인</button>
     </div>
-    <div class="hint">파일이 없으면 자동 생성됩니다 (상위 폴더는 존재해야 합니다)</div>
+    <div class="node-status idle" id="layerStatus">
+      <div class="dot"></div><span id="layerStatusText">URL을 입력하고 확인하세요</span>
+    </div>
   </div>
 
+  <!-- 기록 제어 -->
   <div class="control-section">
-    <button class="btn btn-primary btn-record" id="btnRecord">&#9654;  기록 시작</button>
-    <div class="record-status" id="recordStatus">서버를 실행하고 저장 경로를 입력하세요</div>
+    <button class="btn btn-primary btn-record" id="btnRecord" disabled>&#9654;  기록 시작</button>
+    <div class="ctrl-status" id="ctrlStatus">두 URL을 모두 확인해야 시작할 수 있습니다</div>
   </div>
 
-  <div class="log-section">
-    <div class="log-header">
-      <div class="log-header-title">최근 활동</div>
-      <span class="log-count" id="logCount">0개</span>
+  <!-- 결과 -->
+  <div class="result-section">
+    <div class="result-header">
+      <div class="result-title">마지막 세션 결과</div>
+      <span class="result-badge" id="resultBadge"></span>
     </div>
-    <div class="log-entries" id="logEntries">
-      <div class="log-empty">기록을 시작하면 활동이 여기에 표시됩니다</div>
+    <div class="result-body" id="resultBody">
+      <div class="result-empty">기록이 완료되면 변경 이력이 여기에 표시됩니다</div>
     </div>
   </div>
 
   <script>
-    var MAX_ENTRIES  = 100;
-    var isRecording  = false;
-    var entryCount   = 0;
-    // 동시 쓰기 방지 큐
-    var writeQueue   = Promise.resolve();
+    var isRecording      = false;
+    var targetOk         = false;
+    var layerOk          = false;
+    var validatedTargetUrl    = '';
+    var validatedTextLayerUrl = '';
 
-    var recordDot      = document.getElementById('recordDot');
-    var btnRecord      = document.getElementById('btnRecord');
-    var btnTest        = document.getElementById('btnTest');
-    var statusDot      = document.getElementById('statusDot');
-    var statusLabel    = document.getElementById('statusLabel');
-    var recordStatus   = document.getElementById('recordStatus');
-    var logEntriesEl   = document.getElementById('logEntries');
-    var logCountEl     = document.getElementById('logCount');
-    var serverUrlInput = document.getElementById('serverUrl');
-    var filePathInput  = document.getElementById('filePath');
+    var recordDot          = document.getElementById('recordDot');
+    var btnRecord          = document.getElementById('btnRecord');
+    var btnValidateTarget  = document.getElementById('btnValidateTarget');
+    var btnValidateLayer   = document.getElementById('btnValidateLayer');
+    var targetUrlInput     = document.getElementById('targetUrl');
+    var textLayerUrlInput  = document.getElementById('textLayerUrl');
+    var targetStatus       = document.getElementById('targetStatus');
+    var targetStatusText   = document.getElementById('targetStatusText');
+    var layerStatus        = document.getElementById('layerStatus');
+    var layerStatusText    = document.getElementById('layerStatusText');
+    var ctrlStatus         = document.getElementById('ctrlStatus');
+    var resultBody         = document.getElementById('resultBody');
+    var resultBadge        = document.getElementById('resultBadge');
 
-    function setConnectionStatus(connected) {
-      statusDot.className     = 'status-dot ' + (connected ? 'connected' : 'disconnected');
-      statusLabel.textContent = connected ? '연결됨' : '연결 실패';
+    function setNodeStatus(el, textEl, ok, message) {
+      el.className = 'node-status ' + (ok === null ? 'idle' : ok ? 'ok' : 'err');
+      textEl.textContent = message;
+    }
+
+    function updateRecordButton() {
+      btnRecord.disabled = !(targetOk && layerOk && !isRecording) && !isRecording;
+      if (!isRecording && !(targetOk && layerOk)) {
+        ctrlStatus.textContent = '두 URL을 모두 확인해야 시작할 수 있습니다';
+      }
     }
 
     function setRecording(recording) {
       isRecording = recording;
       recordDot.className = 'record-dot' + (recording ? ' active' : '');
       if (recording) {
-        btnRecord.textContent    = '■  기록 중지';
-        btnRecord.className      = 'btn btn-danger btn-record';
-        recordStatus.textContent = '기록 중...';
-        serverUrlInput.disabled  = true;
-        filePathInput.disabled   = true;
-        btnTest.disabled         = true;
+        btnRecord.textContent = '■  기록 중지';
+        btnRecord.className   = 'btn btn-danger btn-record';
+        btnRecord.disabled    = false;
+        [targetUrlInput, textLayerUrlInput, btnValidateTarget, btnValidateLayer].forEach(function(el) { el.disabled = true; });
       } else {
-        btnRecord.textContent    = '▶  기록 시작';
-        btnRecord.className      = 'btn btn-primary btn-record';
-        recordStatus.textContent = '기록 중지됨 — 파일에 저장되었습니다';
-        serverUrlInput.disabled  = false;
-        filePathInput.disabled   = false;
-        btnTest.disabled         = false;
+        btnRecord.textContent = '▶  기록 시작';
+        btnRecord.className   = 'btn btn-primary btn-record';
+        [targetUrlInput, textLayerUrlInput, btnValidateTarget, btnValidateLayer].forEach(function(el) { el.disabled = false; });
+        updateRecordButton();
       }
     }
 
-    function getEntryClass(text) {
-      if (text.indexOf('[생성]') >= 0 || text.indexOf('[스타일 생성]') >= 0) return 'create';
-      if (text.indexOf('[삭제]') >= 0 || text.indexOf('[스타일 삭제]') >= 0) return 'delete';
-      if (text.indexOf('[변경]') >= 0 || text.indexOf('[스타일 변경]') >= 0) return 'change';
-      return 'system';
+    function showResult(history, changeCount) {
+      resultBody.innerHTML = '';
+      var pre = document.createElement('div');
+      pre.className = 'result-text';
+      pre.textContent = history;
+      resultBody.appendChild(pre);
+      resultBadge.textContent = changeCount + '건 변경';
     }
 
-    function addLogEntry(text, cls) {
-      var empty = logEntriesEl.querySelector('.log-empty');
-      if (empty) empty.remove();
+    function showError(message) {
+      resultBody.innerHTML = '';
       var el = document.createElement('div');
-      el.className   = 'log-entry ' + cls;
-      el.textContent = text.length > 110 ? text.slice(0, 107) + '…' : text;
-      el.title       = text;
-      logEntriesEl.insertBefore(el, logEntriesEl.firstChild);
-      entryCount++;
-      logCountEl.textContent = entryCount + '개';
-      if (logEntriesEl.children.length > MAX_ENTRIES) {
-        logEntriesEl.removeChild(logEntriesEl.lastChild);
-      }
+      el.className = 'result-err';
+      el.textContent = '오류: ' + message;
+      resultBody.appendChild(el);
     }
 
-    // UI가 직접 서버에 fetch (Figma 샌드박스는 localhost fetch 불가)
-    function sendLog(entry) {
-      writeQueue = writeQueue.then(function() { return doSend(entry); });
-    }
-
-    async function doSend(entry) {
-      var url  = serverUrlInput.value.trim();
-      var path = filePathInput.value.trim();
-      if (!url || !path) return;
-      try {
-        var res = await fetch(url + '/log', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entry: entry, filePath: path }),
-        });
-        if (res.ok) {
-          addLogEntry(entry, getEntryClass(entry));
-        } else {
-          var errText = await res.text();
-          addLogEntry('서버 오류: ' + errText, 'error');
-          if (isRecording) recordStatus.textContent = '⚠ 서버 오류: ' + errText;
-        }
-      } catch (e) {
-        addLogEntry('서버 연결 실패', 'error');
-        if (isRecording) recordStatus.textContent = '⚠ 서버 연결 실패 — 서버가 실행 중인지 확인하세요';
-      }
-    }
-
-    // 연결 테스트 — UI에서 직접 fetch
-    btnTest.addEventListener('click', async function() {
-      var url = serverUrlInput.value.trim();
+    // 확인 버튼
+    btnValidateTarget.addEventListener('click', function() {
+      var url = targetUrlInput.value.trim();
       if (!url) return;
-      statusLabel.textContent = '확인 중…';
-      statusDot.className = 'status-dot';
-      try {
-        var res = await fetch(url + '/health');
-        setConnectionStatus(res.ok);
-      } catch (e) {
-        setConnectionStatus(false);
-      }
+      setNodeStatus(targetStatus, targetStatusText, null, '확인 중…');
+      targetOk = false;
+      updateRecordButton();
+      parent.postMessage({ pluginMessage: { type: 'validate-node', url: url, field: 'target' } }, '*');
     });
 
+    btnValidateLayer.addEventListener('click', function() {
+      var url = textLayerUrlInput.value.trim();
+      if (!url) return;
+      setNodeStatus(layerStatus, layerStatusText, null, '확인 중…');
+      layerOk = false;
+      updateRecordButton();
+      parent.postMessage({ pluginMessage: { type: 'validate-node', url: url, field: 'textLayer' } }, '*');
+    });
+
+    // 기록 시작/중지
     btnRecord.addEventListener('click', function() {
       if (!isRecording) {
-        var url  = serverUrlInput.value.trim();
-        var path = filePathInput.value.trim();
-        if (!url || !path) {
-          recordStatus.textContent = '⚠ 서버 URL과 저장 경로를 모두 입력하세요';
-          return;
-        }
         parent.postMessage({
-          pluginMessage: { type: 'start-recording', serverUrl: url, filePath: path }
+          pluginMessage: {
+            type: 'start-recording',
+            targetUrl:    validatedTargetUrl,
+            textLayerUrl: validatedTextLayerUrl,
+          }
         }, '*');
       } else {
         parent.postMessage({ pluginMessage: { type: 'stop-recording' } }, '*');
       }
     });
 
+    // code.ts 메시지 수신
     window.onmessage = function(event) {
       var msg = event.data.pluginMessage;
       if (!msg) return;
+
       switch (msg.type) {
         case 'init-settings':
-          serverUrlInput.value = msg.serverUrl || 'http://localhost:3000';
-          filePathInput.value  = msg.filePath  || '';
+          if (msg.targetUrl)    targetUrlInput.value    = msg.targetUrl;
+          if (msg.textLayerUrl) textLayerUrlInput.value = msg.textLayerUrl;
           break;
+
+        case 'validate-result':
+          if (msg.field === 'target') {
+            targetOk = msg.ok;
+            if (msg.ok) {
+              validatedTargetUrl = targetUrlInput.value.trim();
+              setNodeStatus(targetStatus, targetStatusText, true, '"' + msg.nodeName + '" (' + msg.nodeType + ')');
+            } else {
+              setNodeStatus(targetStatus, targetStatusText, false, msg.error);
+            }
+          } else {
+            layerOk = msg.ok;
+            if (msg.ok) {
+              validatedTextLayerUrl = textLayerUrlInput.value.trim();
+              setNodeStatus(layerStatus, layerStatusText, true, '"' + msg.nodeName + '" (TEXT)');
+            } else {
+              setNodeStatus(layerStatus, layerStatusText, false, msg.error);
+            }
+          }
+          updateRecordButton();
+          break;
+
         case 'recording-started':
           setRecording(true);
+          ctrlStatus.textContent = '"' + msg.targetName + '" 스냅샷 완료 — 작업 후 기록 중지하세요';
           break;
+
         case 'recording-stopped':
           setRecording(false);
+          ctrlStatus.textContent = '기록 완료 — ' + msg.changeCount + '건 변경 감지';
+          showResult(msg.history, msg.changeCount);
           break;
-        case 'send-log':
-          sendLog(msg.entry);
+
+        case 'error':
+          setRecording(false);
+          ctrlStatus.textContent = '⚠ ' + msg.message;
+          showError(msg.message);
           break;
       }
     };
