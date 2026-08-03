@@ -45,18 +45,22 @@ figma.showUI(__html__, { width: 380, height: 520, title: 'Work Logger' });
 // ── 헬퍼: Figma URL → node-id 변환 ───────────────────────────────────────────
 
 function parseNodeId(input: string): string | null {
-  try {
-    const url    = new URL(input.trim());
-    const nodeId = url.searchParams.get('node-id');
-    if (!nodeId) return null;
-    // URL 포맷(1-2) → API 포맷(1:2)
-    return nodeId.replace(/-/g, ':');
-  } catch {
-    const t = input.trim();
-    if (/^\d+:\d+$/.test(t)) return t;
-    if (/^\d+-\d+$/.test(t)) return t.replace('-', ':');
-    return null;
+  const s = input.trim();
+  if (!s) return null;
+
+  // Figma 샌드박스는 new URL() 미지원 — 정규식으로 직접 파싱
+  // URL 예시: https://www.figma.com/design/FILE/name?node-id=123-456&t=…
+  const urlMatch = s.match(/[?&]node-id=([^&#]+)/);
+  if (urlMatch) {
+    // %3A 등 URL 인코딩 해제 후 dash(-)를 colon(:)으로 변환
+    return decodeURIComponent(urlMatch[1]).replace(/-/g, ':');
   }
+
+  // 원시 node-id 직접 입력 ("123:456" 또는 "123-456", 인스턴스 "I123:456" 포함)
+  if (/^[\w]+:\d+$/.test(s)) return s;
+  if (/^[\w]+-\d+$/.test(s)) return s.replace(/-(\d+)$/, ':$1');
+
+  return null;
 }
 
 // ── 헬퍼: 스냅샷 ─────────────────────────────────────────────────────────────
