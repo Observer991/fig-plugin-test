@@ -7,10 +7,10 @@
     body {
       font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 12px; color: #1e1e1e; background: #fff;
-      height: 520px; display: flex; flex-direction: column; overflow: hidden;
+      height: 540px; display: flex; flex-direction: column; overflow: hidden;
     }
 
-    /* Header */
+    /* ── Header ── */
     .header {
       display: flex; align-items: center; gap: 8px;
       padding: 11px 16px; border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
@@ -23,15 +23,15 @@
     .record-dot.active { background: #f24822; animation: pulse 1.4s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
-    /* Section */
+    /* ── Section ── */
     .section { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
     .section-label {
       font-size: 10px; font-weight: 600; color: #999;
       text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
     }
 
-    /* URL row */
-    .url-row { display: flex; gap: 6px; align-items: center; }
+    /* ── Input row ── */
+    .row { display: flex; gap: 6px; align-items: center; }
     input[type="text"] {
       flex: 1; height: 28px; padding: 0 8px;
       border: 1px solid #e5e5e5; border-radius: 4px;
@@ -41,38 +41,53 @@
     input[type="text"]:focus  { border-color: #0c8ce9; background: #fff; }
     input[type="text"]:disabled { opacity: .45; cursor: not-allowed; }
 
-    /* Node status badge */
+    /* ── Divider ── */
+    .or-divider {
+      display: flex; align-items: center; gap: 8px;
+      margin: 6px 0; color: #ccc; font-size: 10px;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ''; flex: 1; height: 1px; background: #e5e5e5;
+    }
+
+    /* ── Instruction text ── */
+    .instruction { font-size: 10px; color: #888; margin-bottom: 6px; line-height: 1.5; }
+
+    /* ── Node status ── */
     .node-status {
-      margin-top: 5px; font-size: 10px;
-      display: flex; align-items: center; gap: 4px; min-height: 14px;
+      display: flex; align-items: center; gap: 4px;
+      margin-top: 5px; font-size: 10px; min-height: 14px;
     }
     .node-status .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .node-status.ok   .dot { background: #14ae5c; }
-    .node-status.err  .dot { background: #f24822; }
-    .node-status.idle .dot { background: #d0d0d0; }
-    .node-status.ok  { color: #14ae5c; }
-    .node-status.err { color: #f24822; }
-    .node-status.idle{ color: #aaa; }
+    .node-status.ok   { color: #14ae5c; } .node-status.ok   .dot { background: #14ae5c; }
+    .node-status.err  { color: #f24822; } .node-status.err  .dot { background: #f24822; }
+    .node-status.idle { color: #aaa;    } .node-status.idle .dot { background: #d0d0d0; }
 
-    /* Button */
+    /* ── Button ── */
     .btn {
       height: 28px; padding: 0 10px; border: none; border-radius: 4px;
       font-size: 11px; font-family: inherit; font-weight: 500;
       cursor: pointer; white-space: nowrap; transition: opacity .15s; flex-shrink: 0;
     }
-    .btn:hover:not(:disabled) { opacity: .82; }
-    .btn:active:not(:disabled){ opacity: .65; }
+    .btn:hover:not(:disabled)  { opacity: .82; }
+    .btn:active:not(:disabled) { opacity: .65; }
     .btn:disabled { opacity: .38; cursor: not-allowed; }
     .btn-ghost   { background: #f0f0f0; color: #1e1e1e; }
     .btn-primary { background: #0c8ce9; color: #fff; }
     .btn-danger  { background: #f24822; color: #fff; }
+    .btn-select  { width: 100%; height: 30px; background: #f5f5f5; color: #1e1e1e;
+                   border: 1px dashed #ccc; border-radius: 4px; font-size: 11px;
+                   font-family: inherit; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .btn-select:hover:not(:disabled) { background: #eef5ff; border-color: #0c8ce9; color: #0c8ce9; }
+    .btn-select.selected { background: #eef5ff; border-color: #0c8ce9; border-style: solid; color: #0c8ce9; }
+    .btn-select:disabled { opacity: .38; cursor: not-allowed; }
 
-    /* Control */
+    /* ── Control ── */
     .control-section { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
     .btn-record { width: 100%; height: 36px; font-size: 13px; font-weight: 600; border-radius: 6px; }
     .ctrl-status { text-align: center; font-size: 10px; color: #aaa; margin-top: 6px; min-height: 14px; }
 
-    /* Result */
+    /* ── Result ── */
     .result-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .result-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -85,7 +100,7 @@
     .result-badge { font-size: 10px; color: #bbb; }
     .result-body { flex: 1; overflow-y: auto; padding: 6px 16px 8px; }
     .result-text {
-      font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
+      font-family: 'Consolas','Menlo','Monaco',monospace;
       font-size: 10px; line-height: 1.6; color: #444;
       white-space: pre-wrap; word-break: break-all;
     }
@@ -101,34 +116,36 @@
     <div class="header-title">Work Logger</div>
   </div>
 
-  <!-- 모니터링 대상 URL -->
+  <!-- 모니터링 대상: URL 입력 또는 선택 -->
   <div class="section">
-    <div class="section-label">모니터링 대상 (프레임 / 섹션 URL)</div>
-    <div class="url-row">
+    <div class="section-label">모니터링 대상 (프레임 / 섹션)</div>
+    <div class="row">
       <input type="text" id="targetUrl" placeholder="https://www.figma.com/design/…?node-id=…" />
-      <button class="btn btn-ghost" id="btnValidateTarget">확인</button>
+      <button class="btn btn-ghost" id="btnValidateTarget">URL로 지정</button>
     </div>
+    <div class="or-divider">또는</div>
+    <button class="btn-select" id="btnSelectTarget">Figma에서 선택 후 → 현재 선택으로 지정</button>
     <div class="node-status idle" id="targetStatus">
-      <div class="dot"></div><span id="targetStatusText">URL을 입력하고 확인하세요</span>
+      <div class="dot"></div><span id="targetStatusText">지정되지 않음</span>
     </div>
   </div>
 
-  <!-- 기록 텍스트 레이어 URL -->
+  <!-- 기록 레이어: 선택 전용 -->
   <div class="section">
-    <div class="section-label">기록 레이어 (텍스트 레이어 URL)</div>
-    <div class="url-row">
-      <input type="text" id="textLayerUrl" placeholder="https://www.figma.com/design/…?node-id=…" />
-      <button class="btn btn-ghost" id="btnValidateLayer">확인</button>
+    <div class="section-label">기록 레이어 (텍스트 레이어)</div>
+    <div class="instruction">
+      Figma 캔버스에서 히스토리를 기록할 <strong>텍스트 레이어</strong>를 클릭하여 선택한 뒤 아래 버튼을 누르세요.
     </div>
+    <button class="btn-select" id="btnSelectLayer">Figma에서 텍스트 레이어 선택 후 → 현재 선택으로 지정</button>
     <div class="node-status idle" id="layerStatus">
-      <div class="dot"></div><span id="layerStatusText">URL을 입력하고 확인하세요</span>
+      <div class="dot"></div><span id="layerStatusText">지정되지 않음</span>
     </div>
   </div>
 
   <!-- 기록 제어 -->
   <div class="control-section">
     <button class="btn btn-primary btn-record" id="btnRecord" disabled>&#9654;  기록 시작</button>
-    <div class="ctrl-status" id="ctrlStatus">두 URL을 모두 확인해야 시작할 수 있습니다</div>
+    <div class="ctrl-status" id="ctrlStatus">모니터링 대상과 기록 레이어를 모두 지정해야 합니다</div>
   </div>
 
   <!-- 결과 -->
@@ -143,53 +160,113 @@
   </div>
 
   <script>
-    var isRecording      = false;
-    var targetOk         = false;
-    var layerOk          = false;
-    var validatedTargetUrl    = '';
-    var validatedTextLayerUrl = '';
+    var isRecording     = false;
+    var targetOk        = false;
+    var layerOk         = false;
+    var targetNodeId    = '';  // 실제 Figma node ID (URL이 아님)
+    var textLayerNodeId = '';
 
-    var recordDot          = document.getElementById('recordDot');
-    var btnRecord          = document.getElementById('btnRecord');
-    var btnValidateTarget  = document.getElementById('btnValidateTarget');
-    var btnValidateLayer   = document.getElementById('btnValidateLayer');
-    var targetUrlInput     = document.getElementById('targetUrl');
-    var textLayerUrlInput  = document.getElementById('textLayerUrl');
-    var targetStatus       = document.getElementById('targetStatus');
-    var targetStatusText   = document.getElementById('targetStatusText');
-    var layerStatus        = document.getElementById('layerStatus');
-    var layerStatusText    = document.getElementById('layerStatusText');
-    var ctrlStatus         = document.getElementById('ctrlStatus');
-    var resultBody         = document.getElementById('resultBody');
-    var resultBadge        = document.getElementById('resultBadge');
+    var recordDot        = document.getElementById('recordDot');
+    var btnRecord        = document.getElementById('btnRecord');
+    var btnValidateTarget = document.getElementById('btnValidateTarget');
+    var btnSelectTarget  = document.getElementById('btnSelectTarget');
+    var btnSelectLayer   = document.getElementById('btnSelectLayer');
+    var targetUrlInput   = document.getElementById('targetUrl');
+    var targetStatus     = document.getElementById('targetStatus');
+    var targetStatusText = document.getElementById('targetStatusText');
+    var layerStatus      = document.getElementById('layerStatus');
+    var layerStatusText  = document.getElementById('layerStatusText');
+    var ctrlStatus       = document.getElementById('ctrlStatus');
+    var resultBody       = document.getElementById('resultBody');
+    var resultBadge      = document.getElementById('resultBadge');
 
-    function setNodeStatus(el, textEl, ok, message) {
-      el.className = 'node-status ' + (ok === null ? 'idle' : ok ? 'ok' : 'err');
+    function setStatus(el, textEl, state, message) {
+      // state: 'idle' | 'ok' | 'err'
+      el.className = 'node-status ' + state;
       textEl.textContent = message;
     }
 
     function updateRecordButton() {
-      btnRecord.disabled = !(targetOk && layerOk && !isRecording) && !isRecording;
-      if (!isRecording && !(targetOk && layerOk)) {
-        ctrlStatus.textContent = '두 URL을 모두 확인해야 시작할 수 있습니다';
+      if (!isRecording) {
+        btnRecord.disabled = !(targetOk && layerOk);
+        ctrlStatus.textContent = (targetOk && layerOk)
+          ? '준비 완료 — 기록 시작 버튼을 누르세요'
+          : '모니터링 대상과 기록 레이어를 모두 지정해야 합니다';
       }
     }
 
     function setRecording(recording) {
       isRecording = recording;
       recordDot.className = 'record-dot' + (recording ? ' active' : '');
+      var inputs = [targetUrlInput, btnValidateTarget, btnSelectTarget, btnSelectLayer];
       if (recording) {
         btnRecord.textContent = '■  기록 중지';
         btnRecord.className   = 'btn btn-danger btn-record';
         btnRecord.disabled    = false;
-        [targetUrlInput, textLayerUrlInput, btnValidateTarget, btnValidateLayer].forEach(function(el) { el.disabled = true; });
+        inputs.forEach(function(el) { el.disabled = true; });
       } else {
         btnRecord.textContent = '▶  기록 시작';
         btnRecord.className   = 'btn btn-primary btn-record';
-        [targetUrlInput, textLayerUrlInput, btnValidateTarget, btnValidateLayer].forEach(function(el) { el.disabled = false; });
+        inputs.forEach(function(el) { el.disabled = false; });
         updateRecordButton();
       }
     }
+
+    function applySelectionResult(msg) {
+      var isTarget = (msg.field === 'target');
+      var statusEl     = isTarget ? targetStatus     : layerStatus;
+      var statusTextEl = isTarget ? targetStatusText : layerStatusText;
+      var selectBtn    = isTarget ? btnSelectTarget  : btnSelectLayer;
+
+      if (msg.ok) {
+        if (isTarget) { targetOk = true;  targetNodeId    = msg.nodeId; }
+        else          { layerOk  = true;  textLayerNodeId = msg.nodeId; }
+        var label = '"' + msg.nodeName + '" (' + msg.nodeType + ')';
+        setStatus(statusEl, statusTextEl, 'ok', label);
+        selectBtn.classList.add('selected');
+      } else {
+        if (isTarget) { targetOk = false; targetNodeId    = ''; }
+        else          { layerOk  = false; textLayerNodeId = ''; }
+        setStatus(statusEl, statusTextEl, 'err', msg.error);
+        selectBtn.classList.remove('selected');
+      }
+      updateRecordButton();
+    }
+
+    // URL로 지정 (모니터링 대상)
+    btnValidateTarget.addEventListener('click', function() {
+      var url = targetUrlInput.value.trim();
+      if (!url) return;
+      setStatus(targetStatus, targetStatusText, 'idle', '확인 중…');
+      parent.postMessage({ pluginMessage: { type: 'validate-node', url: url, field: 'target' } }, '*');
+    });
+
+    // 현재 선택으로 지정 — 모니터링 대상
+    btnSelectTarget.addEventListener('click', function() {
+      setStatus(targetStatus, targetStatusText, 'idle', '선택 읽는 중…');
+      parent.postMessage({ pluginMessage: { type: 'use-selection', field: 'target' } }, '*');
+    });
+
+    // 현재 선택으로 지정 — 기록 레이어
+    btnSelectLayer.addEventListener('click', function() {
+      setStatus(layerStatus, layerStatusText, 'idle', '선택 읽는 중…');
+      parent.postMessage({ pluginMessage: { type: 'use-selection', field: 'textLayer' } }, '*');
+    });
+
+    // 기록 시작 / 중지
+    btnRecord.addEventListener('click', function() {
+      if (!isRecording) {
+        parent.postMessage({
+          pluginMessage: {
+            type: 'start-recording',
+            targetNodeId:    targetNodeId,
+            textLayerNodeId: textLayerNodeId,
+          }
+        }, '*');
+      } else {
+        parent.postMessage({ pluginMessage: { type: 'stop-recording' } }, '*');
+      }
+    });
 
     function showResult(history, changeCount) {
       resultBody.innerHTML = '';
@@ -208,70 +285,32 @@
       resultBody.appendChild(el);
     }
 
-    // 확인 버튼
-    btnValidateTarget.addEventListener('click', function() {
-      var url = targetUrlInput.value.trim();
-      if (!url) return;
-      setNodeStatus(targetStatus, targetStatusText, null, '확인 중…');
-      targetOk = false;
-      updateRecordButton();
-      parent.postMessage({ pluginMessage: { type: 'validate-node', url: url, field: 'target' } }, '*');
-    });
-
-    btnValidateLayer.addEventListener('click', function() {
-      var url = textLayerUrlInput.value.trim();
-      if (!url) return;
-      setNodeStatus(layerStatus, layerStatusText, null, '확인 중…');
-      layerOk = false;
-      updateRecordButton();
-      parent.postMessage({ pluginMessage: { type: 'validate-node', url: url, field: 'textLayer' } }, '*');
-    });
-
-    // 기록 시작/중지
-    btnRecord.addEventListener('click', function() {
-      if (!isRecording) {
-        parent.postMessage({
-          pluginMessage: {
-            type: 'start-recording',
-            targetUrl:    validatedTargetUrl,
-            textLayerUrl: validatedTextLayerUrl,
-          }
-        }, '*');
-      } else {
-        parent.postMessage({ pluginMessage: { type: 'stop-recording' } }, '*');
-      }
-    });
-
     // code.ts 메시지 수신
     window.onmessage = function(event) {
       var msg = event.data.pluginMessage;
       if (!msg) return;
 
       switch (msg.type) {
-        case 'init-settings':
-          if (msg.targetUrl)    targetUrlInput.value    = msg.targetUrl;
-          if (msg.textLayerUrl) textLayerUrlInput.value = msg.textLayerUrl;
-          break;
-
-        case 'validate-result':
-          if (msg.field === 'target') {
-            targetOk = msg.ok;
-            if (msg.ok) {
-              validatedTargetUrl = targetUrlInput.value.trim();
-              setNodeStatus(targetStatus, targetStatusText, true, '"' + msg.nodeName + '" (' + msg.nodeType + ')');
-            } else {
-              setNodeStatus(targetStatus, targetStatusText, false, msg.error);
-            }
-          } else {
-            layerOk = msg.ok;
-            if (msg.ok) {
-              validatedTextLayerUrl = textLayerUrlInput.value.trim();
-              setNodeStatus(layerStatus, layerStatusText, true, '"' + msg.nodeName + '" (TEXT)');
-            } else {
-              setNodeStatus(layerStatus, layerStatusText, false, msg.error);
-            }
+        // 저장된 node ID 복원 — 이름은 알 수 없으므로 ID만 표시
+        case 'init-node-ids':
+          if (msg.targetNodeId) {
+            targetNodeId = msg.targetNodeId;
+            targetOk = true;
+            setStatus(targetStatus, targetStatusText, 'ok', '이전 설정 복원됨 (ID: ' + msg.targetNodeId + ')');
+            btnSelectTarget.classList.add('selected');
+          }
+          if (msg.textLayerNodeId) {
+            textLayerNodeId = msg.textLayerNodeId;
+            layerOk = true;
+            setStatus(layerStatus, layerStatusText, 'ok', '이전 설정 복원됨 (ID: ' + msg.textLayerNodeId + ')');
+            btnSelectLayer.classList.add('selected');
           }
           updateRecordButton();
+          break;
+
+        // URL 검증 또는 선택 결과 (공통 핸들러)
+        case 'selection-result':
+          applySelectionResult(msg);
           break;
 
         case 'recording-started':

@@ -37,9 +37,9 @@ let beforeSnapshot:  NodeSnap | null = null;
 figma.showUI(__html__, { width: 380, height: 520, title: 'Work Logger' });
 
 (async () => {
-  const savedTarget    = await figma.clientStorage.getAsync('targetUrl')    as string | undefined;
-  const savedTextLayer = await figma.clientStorage.getAsync('textLayerUrl') as string | undefined;
-  figma.ui.postMessage({ type: 'init-settings', targetUrl: savedTarget ?? '', textLayerUrl: savedTextLayer ?? '' });
+  const savedTarget    = await figma.clientStorage.getAsync('targetNodeId')    as string | undefined;
+  const savedTextLayer = await figma.clientStorage.getAsync('textLayerNodeId') as string | undefined;
+  figma.ui.postMessage({ type: 'init-node-ids', targetNodeId: savedTarget ?? '', textLayerNodeId: savedTextLayer ?? '' });
 })();
 
 // ── 헬퍼: Figma URL → node-id 변환 ───────────────────────────────────────────
@@ -214,40 +214,55 @@ figma.ui.onmessage = async (msg: {
   type: string;
   url?: string;
   field?: string;
-  targetUrl?: string;
-  textLayerUrl?: string;
+  targetNodeId?: string;
+  textLayerNodeId?: string;
 }) => {
   switch (msg.type) {
 
-    // URL 유효성 검사 + 노드 정보 반환
+    // URL 유효성 검사 + 노드 정보 반환 (모니터링 대상 URL 입력용)
     case 'validate-node': {
       const nodeId = parseNodeId(msg.url ?? '');
       if (!nodeId) {
-        figma.ui.postMessage({ type: 'validate-result', field: msg.field, ok: false, error: '유효한 Figma URL이 아닙니다.' });
+        figma.ui.postMessage({ type: 'selection-result', field: msg.field, ok: false, error: '유효한 Figma URL이 아닙니다.' });
         return;
       }
       const node = await figma.getNodeByIdAsync(nodeId);
       if (!node) {
-        figma.ui.postMessage({ type: 'validate-result', field: msg.field, ok: false, error: '노드를 찾을 수 없습니다. URL을 다시 확인하세요.' });
-        return;
-      }
-      if (msg.field === 'textLayer' && node.type !== 'TEXT') {
-        figma.ui.postMessage({ type: 'validate-result', field: msg.field, ok: false, error: `텍스트 레이어가 아닙니다 (유형: ${node.type})` });
+        figma.ui.postMessage({ type: 'selection-result', field: msg.field, ok: false, error: '노드를 찾을 수 없습니다. URL을 다시 확인하세요.' });
         return;
       }
       figma.ui.postMessage({
-        type: 'validate-result', field: msg.field, ok: true,
+        type: 'selection-result', field: msg.field, ok: true,
         nodeId, nodeName: (node as SceneNode).name, nodeType: node.type,
       });
       break;
     }
 
-    // 기록 시작: 스냅샷 촬영
+    // 현재 선택된 레이어를 해당 필드에 지정
+    case 'use-selection': {
+      const sel = figma.currentPage.selection;
+      if (sel.length === 0) {
+        figma.ui.postMessage({ type: 'selection-result', field: msg.field, ok: false, error: '선택된 레이어가 없습니다. Figma 캔버스에서 레이어를 먼저 선택하세요.' });
+        return;
+      }
+      const node = sel[0];
+      if (msg.field === 'textLayer' && node.type !== 'TEXT') {
+        figma.ui.postMessage({ type: 'selection-result', field: msg.field, ok: false, error: `텍스트 레이어를 선택해야 합니다 (현재 선택: ${node.type})` });
+        return;
+      }
+      figma.ui.postMessage({
+        type: 'selection-result', field: msg.field, ok: true,
+        nodeId: node.id, nodeName: node.name, nodeType: node.type,
+      });
+      break;
+    }
+
+    // 기록 시작: node ID를 직접 받아 스냅샷 촬영
     case 'start-recording': {
-      const tNodeId  = parseNodeId(msg.targetUrl   ?? '');
-      const tlNodeId = parseNodeId(msg.textLayerUrl ?? '');
+      const tNodeId  = msg.targetNodeId  ?? '';
+      const tlNodeId = msg.textLayerNodeId ?? '';
       if (!tNodeId || !tlNodeId) {
-        figma.ui.postMessage({ type: 'error', message: '두 URL을 모두 확인해주세요.' });
+        figma.ui.postMessage({ type: 'error', message: '모니터링 대상과 기록 레이어를 모두 지정해주세요.' });
         return;
       }
       const node = await figma.getNodeByIdAsync(tNodeId);
@@ -258,8 +273,8 @@ figma.ui.onmessage = async (msg: {
 
       targetNodeId    = tNodeId;
       textLayerNodeId = tlNodeId;
-      await figma.clientStorage.setAsync('targetUrl',    msg.targetUrl    ?? '');
-      await figma.clientStorage.setAsync('textLayerUrl', msg.textLayerUrl ?? '');
+      await figma.clientStorage.setAsync('targetNodeId',    tNodeId);
+      await figma.clientStorage.setAsync('textLayerNodeId', tlNodeId);
 
       beforeSnapshot = snapNode(node as SceneNode);
       isRecording    = true;
