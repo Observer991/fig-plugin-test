@@ -38,32 +38,17 @@ const PROP_KR: Record<string, string> = {
 };
 
 let isRecording = false;
-let filePath = '';
-let serverUrl = 'http://localhost:3000';
 
 figma.showUI(__html__, {
   width: 360,
-  height: 540,
+  height: 460,
   title: 'Work Logger',
 });
 
-// 저장된 설정 불러오기
-(async () => {
-  const savedServerUrl = await figma.clientStorage.getAsync('serverUrl') as string | undefined;
-  const savedFilePath  = await figma.clientStorage.getAsync('filePath')  as string | undefined;
-  figma.ui.postMessage({
-    type: 'init-settings',
-    serverUrl: savedServerUrl ?? 'http://localhost:3000',
-    filePath:  savedFilePath  ?? '',
-  });
-})();
-
-// RemovedNode는 name/parent 속성이 없으므로 SceneNode 여부를 먼저 확인
 function isSceneNode(node: SceneNode | RemovedNode): node is SceneNode {
   return 'name' in node;
 }
 
-// 노드의 상위를 순회해 페이지 이름 반환
 function getPageName(node: SceneNode): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let n: any = node;
@@ -97,7 +82,7 @@ function formatChange(change: DocumentChange): string | null {
         return `[${ts}] [생성] "${change.node.name}" (${typeName}) - 페이지: ${pageName}`;
       }
       case 'DELETE': {
-        if (!isSceneNode(change.node)) return `[${getTimestamp()}] [삭제] (노드 정보 없음)`;
+        if (!isSceneNode(change.node)) return `[${ts}] [삭제] (노드 정보 없음)`;
         const typeName = NODE_TYPE_KR[change.node.type] ?? change.node.type;
         const pageName = getPageName(change.node);
         return `[${ts}] [삭제] "${change.node.name}" (${typeName}) - 페이지: ${pageName}`;
@@ -121,16 +106,15 @@ function formatChange(change: DocumentChange): string | null {
         return null;
     }
   } catch {
-    return `[${getTimestamp()}] [변경 감지] (상세 정보 접근 불가)`;
+    return `[${ts}] [변경 감지] (상세 정보 접근 불가)`;
   }
 }
 
-// 로그 항목을 UI로 전달 (UI가 직접 서버에 fetch)
+// 변경 항목을 UI로 전달 — 실제 파일 쓰기는 UI(FSAA)가 담당
 function relayLog(entry: string): void {
   figma.ui.postMessage({ type: 'send-log', entry });
 }
 
-// 문서 변경 이벤트 감지 (기록 중일 때만 처리)
 figma.on('documentchange', (event: DocumentChangeEvent) => {
   if (!isRecording) return;
   for (const change of event.documentChanges) {
@@ -139,52 +123,27 @@ figma.on('documentchange', (event: DocumentChangeEvent) => {
   }
 });
 
-// UI 메시지 처리
-figma.ui.onmessage = async (msg: {
-  type: string;
-  filePath?: string;
-  serverUrl?: string;
-}) => {
+figma.ui.onmessage = async (msg: { type: string }) => {
   switch (msg.type) {
     case 'start-recording': {
-      filePath  = msg.filePath  ?? '';
-      serverUrl = msg.serverUrl ?? 'http://localhost:3000';
-
-      await figma.clientStorage.setAsync('serverUrl', serverUrl);
-      await figma.clientStorage.setAsync('filePath',  filePath);
-
       isRecording = true;
-
       const ts     = getTimestamp();
       const header = `\n${'='.repeat(60)}\n기록 시작: ${ts}\n${'='.repeat(60)}\n`;
       relayLog(header);
-
       figma.ui.postMessage({ type: 'recording-started' });
       break;
     }
-
     case 'stop-recording': {
       isRecording = false;
-
       const ts     = getTimestamp();
-      const footer = `기록 종료: ${ts}\n${'='.repeat(60)}\n`;
-      relayLog(footer);
-
+      relayLog(`기록 종료: ${ts}\n${'='.repeat(60)}\n`);
       figma.ui.postMessage({ type: 'recording-stopped' });
       break;
     }
-
-    case 'save-settings': {
-      await figma.clientStorage.setAsync('serverUrl', msg.serverUrl ?? 'http://localhost:3000');
-      await figma.clientStorage.setAsync('filePath',  msg.filePath  ?? '');
-      break;
-    }
-
     case 'close': {
       if (isRecording) {
         isRecording = false;
-        const ts = getTimestamp();
-        relayLog(`기록 종료 (플러그인 닫힘): ${ts}\n${'='.repeat(60)}\n`);
+        relayLog(`기록 종료 (플러그인 닫힘): ${getTimestamp()}\n${'='.repeat(60)}\n`);
       }
       figma.closePlugin();
       break;

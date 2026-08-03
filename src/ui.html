@@ -10,7 +10,7 @@
       font-size: 12px;
       color: #1e1e1e;
       background: #fff;
-      height: 540px;
+      height: 460px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -18,62 +18,48 @@
 
     /* ── Header ── */
     .header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 11px 16px;
-      border-bottom: 1px solid #e5e5e5;
-      flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 16px; border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
     }
     .header-title { font-weight: 600; font-size: 13px; }
     .record-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #d0d0d0;
-      flex-shrink: 0;
-      transition: background 0.3s;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #d0d0d0; flex-shrink: 0; transition: background 0.3s;
     }
-    .record-dot.active {
-      background: #f24822;
-      animation: pulse 1.4s infinite;
-    }
+    .record-dot.active { background: #f24822; animation: pulse 1.4s infinite; }
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.25; }
+      0%, 100% { opacity: 1; } 50% { opacity: 0.25; }
     }
+
+    /* ── Compatibility banner ── */
+    .compat-banner {
+      display: none;
+      background: #fff3cd; border-bottom: 1px solid #ffc107;
+      padding: 8px 16px; font-size: 11px; color: #856404; flex-shrink: 0;
+    }
+    .compat-banner.show { display: block; }
 
     /* ── Section ── */
     .section {
-      padding: 10px 16px;
-      border-bottom: 1px solid #f0f0f0;
-      flex-shrink: 0;
+      padding: 10px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
     }
     .section-label {
-      font-size: 10px; font-weight: 600;
-      color: #999; text-transform: uppercase;
-      letter-spacing: 0.5px; margin-bottom: 6px;
+      font-size: 10px; font-weight: 600; color: #999;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
     }
-
-    /* ── Input ── */
-    .input-row { display: flex; gap: 6px; align-items: center; }
-    input[type="text"] {
-      flex: 1; height: 28px; padding: 0 8px;
-      border: 1px solid #e5e5e5; border-radius: 4px;
-      font-size: 11px; font-family: inherit; color: #1e1e1e;
-      background: #fafafa; outline: none;
-      transition: border-color 0.15s, background 0.15s;
+    .file-row { display: flex; gap: 8px; align-items: center; }
+    .file-name {
+      flex: 1; font-size: 11px; color: #555;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    input[type="text"]:focus  { border-color: #0c8ce9; background: #fff; }
-    input[type="text"]:disabled { opacity: 0.45; cursor: not-allowed; }
+    .file-name.empty { color: #bbb; }
     .hint { font-size: 10px; color: #bbb; margin-top: 5px; }
 
     /* ── Button ── */
     .btn {
-      height: 28px; padding: 0 10px;
-      border: none; border-radius: 4px;
+      height: 28px; padding: 0 10px; border: none; border-radius: 4px;
       font-size: 11px; font-family: inherit; font-weight: 500;
-      cursor: pointer; white-space: nowrap;
-      transition: opacity 0.15s;
+      cursor: pointer; white-space: nowrap; transition: opacity 0.15s; flex-shrink: 0;
     }
     .btn:hover:not(:disabled)  { opacity: 0.82; }
     .btn:active:not(:disabled) { opacity: 0.65; }
@@ -82,21 +68,9 @@
     .btn-primary   { background: #0c8ce9; color: #fff; }
     .btn-danger    { background: #f24822; color: #fff; }
 
-    /* ── Connection status ── */
-    .conn-status { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-    .status-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%; background: #d0d0d0; flex-shrink: 0;
-    }
-    .status-dot.connected    { background: #14ae5c; }
-    .status-dot.disconnected { background: #f24822; }
-    .status-label { font-size: 10px; color: #999; }
-
     /* ── Control section ── */
     .control-section {
-      padding: 12px 16px;
-      border-bottom: 1px solid #f0f0f0;
-      flex-shrink: 0;
+      padding: 12px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
     }
     .btn-record {
       width: 100%; height: 36px;
@@ -143,32 +117,25 @@
     <div class="header-title">Work Logger</div>
   </div>
 
-  <!-- Server settings -->
-  <div class="section">
-    <div class="section-label">서버 설정</div>
-    <div class="input-row">
-      <input type="text" id="serverUrl" placeholder="http://localhost:3000" />
-      <button class="btn btn-secondary" id="btnTest">연결 테스트</button>
-      <div class="conn-status">
-        <div class="status-dot" id="statusDot"></div>
-        <span class="status-label" id="statusLabel">-</span>
-      </div>
-    </div>
+  <!-- 호환성 경고 (FSAA 미지원 환경) -->
+  <div class="compat-banner" id="compatBanner">
+    ⚠ 이 환경에서는 파일 직접 쓰기를 지원하지 않습니다 (File System Access API 없음)
   </div>
 
-  <!-- File path -->
+  <!-- File selection -->
   <div class="section">
-    <div class="section-label">저장 경로</div>
-    <div class="input-row">
-      <input type="text" id="filePath" placeholder="C:\Users\user\work-log.txt" />
+    <div class="section-label">저장 파일</div>
+    <div class="file-row">
+      <button class="btn btn-secondary" id="btnSelectFile">파일 선택</button>
+      <span class="file-name empty" id="fileName">선택된 파일 없음</span>
     </div>
-    <div class="hint">파일이 없으면 자동 생성됩니다 (상위 폴더는 존재해야 합니다)</div>
+    <div class="hint">파일이 없으면 새로 생성됩니다</div>
   </div>
 
   <!-- Recording control -->
   <div class="control-section">
-    <button class="btn btn-primary btn-record" id="btnRecord">&#9654;  기록 시작</button>
-    <div class="record-status" id="recordStatus">서버를 실행하고 저장 경로를 입력하세요</div>
+    <button class="btn btn-primary btn-record" id="btnRecord" disabled>&#9654;  기록 시작</button>
+    <div class="record-status" id="recordStatus">저장 파일을 선택하세요</div>
   </div>
 
   <!-- Activity log -->
@@ -185,42 +152,71 @@
   <script>
     const MAX_ENTRIES = 100;
 
+    let fileHandle   = null;
     let isRecording  = false;
     let entryCount   = 0;
+    // 동시 쓰기 방지: 순차 처리 큐
+    let writeQueue   = Promise.resolve();
 
-    const recordDot      = document.getElementById('recordDot');
-    const btnRecord      = document.getElementById('btnRecord');
-    const btnTest        = document.getElementById('btnTest');
-    const statusDot      = document.getElementById('statusDot');
-    const statusLabel    = document.getElementById('statusLabel');
-    const recordStatus   = document.getElementById('recordStatus');
-    const logEntriesEl   = document.getElementById('logEntries');
-    const logCountEl     = document.getElementById('logCount');
-    const serverUrlInput = document.getElementById('serverUrl');
-    const filePathInput  = document.getElementById('filePath');
+    const recordDot    = document.getElementById('recordDot');
+    const btnRecord    = document.getElementById('btnRecord');
+    const btnSelectFile = document.getElementById('btnSelectFile');
+    const fileName     = document.getElementById('fileName');
+    const recordStatus = document.getElementById('recordStatus');
+    const logEntriesEl = document.getElementById('logEntries');
+    const logCountEl   = document.getElementById('logCount');
+    const compatBanner = document.getElementById('compatBanner');
 
-    function setConnectionStatus(connected) {
-      statusDot.className    = 'status-dot ' + (connected ? 'connected' : 'disconnected');
-      statusLabel.textContent = connected ? '연결됨' : '연결 실패';
+    // ── FSAA 지원 여부 확인 ──────────────────────────
+    if (!('showSaveFilePicker' in window)) {
+      compatBanner.classList.add('show');
+      btnSelectFile.disabled = true;
     }
 
+    // ── 파일 선택 ────────────────────────────────────
+    btnSelectFile.addEventListener('click', async function () {
+      try {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: 'work-log.txt',
+          types: [{
+            description: '텍스트 파일',
+            accept: { 'text/plain': ['.txt'] }
+          }]
+        });
+        fileName.textContent = fileHandle.name;
+        fileName.classList.remove('empty');
+        btnRecord.disabled = false;
+        recordStatus.textContent = '기록을 시작하세요';
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          recordStatus.textContent = '파일 선택 실패: ' + e.message;
+        }
+      }
+    });
+
+    // ── 기록 시작 / 중지 ─────────────────────────────
+    btnRecord.addEventListener('click', function () {
+      if (!isRecording) {
+        parent.postMessage({ pluginMessage: { type: 'start-recording' } }, '*');
+      } else {
+        parent.postMessage({ pluginMessage: { type: 'stop-recording' } }, '*');
+      }
+    });
+
+    // ── UI 상태 전환 ─────────────────────────────────
     function setRecording(recording) {
       isRecording = recording;
       recordDot.className = 'record-dot' + (recording ? ' active' : '');
       if (recording) {
-        btnRecord.textContent   = '■  기록 중지';
-        btnRecord.className     = 'btn btn-danger btn-record';
+        btnRecord.textContent  = '■  기록 중지';
+        btnRecord.className    = 'btn btn-danger btn-record';
         recordStatus.textContent = '기록 중...';
-        serverUrlInput.disabled  = true;
-        filePathInput.disabled   = true;
-        btnTest.disabled         = true;
+        btnSelectFile.disabled = true;
       } else {
-        btnRecord.textContent   = '▶  기록 시작';
-        btnRecord.className     = 'btn btn-primary btn-record';
+        btnRecord.textContent  = '▶  기록 시작';
+        btnRecord.className    = 'btn btn-primary btn-record';
         recordStatus.textContent = '기록 중지됨 — 파일에 저장되었습니다';
-        serverUrlInput.disabled  = false;
-        filePathInput.disabled   = false;
-        btnTest.disabled         = false;
+        btnSelectFile.disabled = false;
       }
     }
 
@@ -232,10 +228,10 @@
     }
 
     function addLogEntry(text, cls) {
-      const empty = logEntriesEl.querySelector('.log-empty');
+      var empty = logEntriesEl.querySelector('.log-empty');
       if (empty) empty.remove();
 
-      const el = document.createElement('div');
+      var el = document.createElement('div');
       el.className   = 'log-entry ' + cls;
       el.textContent = text.length > 110 ? text.slice(0, 107) + '…' : text;
       el.title       = text;
@@ -243,88 +239,44 @@
 
       entryCount++;
       logCountEl.textContent = entryCount + '개';
-
       if (logEntriesEl.children.length > MAX_ENTRIES) {
         logEntriesEl.removeChild(logEntriesEl.lastChild);
       }
     }
 
-    // UI가 직접 서버에 fetch — Figma 샌드박스(code.ts)에서 localhost fetch 불가
-    async function sendLog(entry) {
-      const url  = serverUrlInput.value.trim();
-      const path = filePathInput.value.trim();
-      if (!url || !path) return;
+    // ── 파일 쓰기 (FSAA) — 순차 큐로 동시 접근 방지 ──
+    function sendLog(entry) {
+      writeQueue = writeQueue.then(function () {
+        return doWrite(entry);
+      });
+    }
 
+    async function doWrite(entry) {
+      if (!fileHandle) return;
       try {
-        const res = await fetch(url + '/log', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entry: entry, filePath: path }),
-        });
-        if (res.ok) {
-          addLogEntry(entry, getEntryClass(entry));
-        } else {
-          var errText = await res.text();
-          addLogEntry('서버 오류: ' + errText, 'error');
-          if (isRecording) recordStatus.textContent = '⚠ 서버 오류: ' + errText;
-        }
+        var file     = await fileHandle.getFile();
+        var writable = await fileHandle.createWritable({ keepExistingData: true });
+        await writable.seek(file.size);      // 파일 끝으로 이동 (append)
+        await writable.write(entry + '\n');
+        await writable.close();
+        addLogEntry(entry, getEntryClass(entry));
       } catch (e) {
-        addLogEntry('서버 연결 실패', 'error');
-        if (isRecording) recordStatus.textContent = '⚠ 서버 연결 실패 — 서버 실행 여부를 확인하세요';
+        addLogEntry('파일 쓰기 실패: ' + e.message, 'error');
+        recordStatus.textContent = '⚠ 파일 쓰기 실패: ' + e.message;
       }
     }
 
-    // 연결 테스트 — UI에서 직접 fetch
-    btnTest.addEventListener('click', async function() {
-      var url = serverUrlInput.value.trim();
-      if (!url) return;
-      statusLabel.textContent = '확인 중…';
-      statusDot.className = 'status-dot';
-      try {
-        var res = await fetch(url + '/health');
-        setConnectionStatus(res.ok);
-      } catch (e) {
-        setConnectionStatus(false);
-      }
-    });
-
-    // 기록 시작 / 중지
-    btnRecord.addEventListener('click', function() {
-      if (!isRecording) {
-        var url  = serverUrlInput.value.trim();
-        var path = filePathInput.value.trim();
-        if (!url || !path) {
-          recordStatus.textContent = '⚠ 서버 URL과 저장 경로를 모두 입력하세요';
-          return;
-        }
-        parent.postMessage({
-          pluginMessage: { type: 'start-recording', serverUrl: url, filePath: path },
-        }, '*');
-      } else {
-        parent.postMessage({ pluginMessage: { type: 'stop-recording' } }, '*');
-      }
-    });
-
-    // 플러그인 코드(code.ts)에서 오는 메시지 수신
-    window.onmessage = function(event) {
+    // ── code.ts 메시지 수신 ──────────────────────────
+    window.onmessage = function (event) {
       var msg = event.data.pluginMessage;
       if (!msg) return;
-
       switch (msg.type) {
-        case 'init-settings':
-          serverUrlInput.value = msg.serverUrl || 'http://localhost:3000';
-          filePathInput.value  = msg.filePath  || '';
-          break;
-
         case 'recording-started':
           setRecording(true);
           break;
-
         case 'recording-stopped':
           setRecording(false);
           break;
-
-        // code.ts가 감지한 변경 항목을 UI로 전달 → UI가 서버에 전송
         case 'send-log':
           sendLog(msg.entry);
           break;
