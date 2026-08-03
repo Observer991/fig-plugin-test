@@ -25,13 +25,9 @@
       border-bottom: 1px solid #e5e5e5;
       flex-shrink: 0;
     }
-    .header-title {
-      font-weight: 600;
-      font-size: 13px;
-    }
+    .header-title { font-weight: 600; font-size: 13px; }
     .record-dot {
-      width: 8px;
-      height: 8px;
+      width: 8px; height: 8px;
       border-radius: 50%;
       background: #d0d0d0;
       flex-shrink: 0;
@@ -53,58 +49,30 @@
       flex-shrink: 0;
     }
     .section-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: #999;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
+      font-size: 10px; font-weight: 600;
+      color: #999; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 6px;
     }
 
     /* ── Input ── */
-    .input-row {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
+    .input-row { display: flex; gap: 6px; align-items: center; }
     input[type="text"] {
-      flex: 1;
-      height: 28px;
-      padding: 0 8px;
-      border: 1px solid #e5e5e5;
-      border-radius: 4px;
-      font-size: 11px;
-      font-family: inherit;
-      color: #1e1e1e;
-      background: #fafafa;
-      outline: none;
+      flex: 1; height: 28px; padding: 0 8px;
+      border: 1px solid #e5e5e5; border-radius: 4px;
+      font-size: 11px; font-family: inherit; color: #1e1e1e;
+      background: #fafafa; outline: none;
       transition: border-color 0.15s, background 0.15s;
     }
-    input[type="text"]:focus {
-      border-color: #0c8ce9;
-      background: #fff;
-    }
-    input[type="text"]:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-    .hint {
-      font-size: 10px;
-      color: #bbb;
-      margin-top: 5px;
-    }
+    input[type="text"]:focus  { border-color: #0c8ce9; background: #fff; }
+    input[type="text"]:disabled { opacity: 0.45; cursor: not-allowed; }
+    .hint { font-size: 10px; color: #bbb; margin-top: 5px; }
 
     /* ── Button ── */
     .btn {
-      height: 28px;
-      padding: 0 10px;
-      border: none;
-      border-radius: 4px;
-      font-size: 11px;
-      font-family: inherit;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
+      height: 28px; padding: 0 10px;
+      border: none; border-radius: 4px;
+      font-size: 11px; font-family: inherit; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
       transition: opacity 0.15s;
     }
     .btn:hover:not(:disabled)  { opacity: 0.82; }
@@ -115,25 +83,14 @@
     .btn-danger    { background: #f24822; color: #fff; }
 
     /* ── Connection status ── */
-    .conn-status {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-shrink: 0;
-    }
+    .conn-status { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #d0d0d0;
-      flex-shrink: 0;
+      width: 6px; height: 6px;
+      border-radius: 50%; background: #d0d0d0; flex-shrink: 0;
     }
     .status-dot.connected    { background: #14ae5c; }
     .status-dot.disconnected { background: #f24822; }
-    .status-label {
-      font-size: 10px;
-      color: #999;
-    }
+    .status-label { font-size: 10px; color: #999; }
 
     /* ── Control section ── */
     .control-section {
@@ -142,71 +99,40 @@
       flex-shrink: 0;
     }
     .btn-record {
-      width: 100%;
-      height: 36px;
-      font-size: 13px;
-      font-weight: 600;
-      border-radius: 6px;
+      width: 100%; height: 36px;
+      font-size: 13px; font-weight: 600; border-radius: 6px;
     }
     .record-status {
-      text-align: center;
-      font-size: 10px;
-      color: #aaa;
-      margin-top: 7px;
-      min-height: 14px;
+      text-align: center; font-size: 10px; color: #aaa;
+      margin-top: 7px; min-height: 14px;
     }
 
     /* ── Activity log ── */
-    .log-section {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+    .log-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .log-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 7px 16px;
-      border-bottom: 1px solid #f0f0f0;
-      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 16px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
     }
     .log-header-title {
-      font-size: 10px;
-      font-weight: 600;
-      color: #999;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 10px; font-weight: 600; color: #999;
+      text-transform: uppercase; letter-spacing: 0.5px;
     }
     .log-count { font-size: 10px; color: #bbb; }
 
-    .log-entries {
-      flex: 1;
-      overflow-y: auto;
-      padding: 4px 16px 8px;
-    }
+    .log-entries { flex: 1; overflow-y: auto; padding: 4px 16px 8px; }
     .log-entry {
-      padding: 3px 0;
-      font-size: 10px;
+      padding: 3px 0; font-size: 10px;
       font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
-      line-height: 1.5;
-      border-bottom: 1px solid #f8f8f8;
-      word-break: break-all;
-      cursor: default;
+      line-height: 1.5; border-bottom: 1px solid #f8f8f8;
+      word-break: break-all; cursor: default;
     }
     .log-entry.create { color: #14ae5c; }
     .log-entry.delete { color: #f24822; }
     .log-entry.change { color: #0c8ce9; }
-    .log-entry.style  { color: #9747ff; }
     .log-entry.system { color: #aaa; font-style: italic; }
     .log-entry.error  { color: #f24822; font-style: italic; }
 
-    .log-empty {
-      text-align: center;
-      color: #ccc;
-      font-size: 11px;
-      padding: 28px 0;
-    }
+    .log-empty { text-align: center; color: #ccc; font-size: 11px; padding: 28px 0; }
   </style>
 </head>
 <body>
@@ -241,7 +167,7 @@
 
   <!-- Recording control -->
   <div class="control-section">
-    <button class="btn btn-primary btn-record" id="btnRecord">▶  기록 시작</button>
+    <button class="btn btn-primary btn-record" id="btnRecord">&#9654;  기록 시작</button>
     <div class="record-status" id="recordStatus">서버를 실행하고 저장 경로를 입력하세요</div>
   </div>
 
@@ -259,43 +185,42 @@
   <script>
     const MAX_ENTRIES = 100;
 
-    let isRecording = false;
-    let entryCount  = 0;
+    let isRecording  = false;
+    let entryCount   = 0;
 
-    const recordDot   = document.getElementById('recordDot');
-    const btnRecord   = document.getElementById('btnRecord');
-    const btnTest     = document.getElementById('btnTest');
-    const statusDot   = document.getElementById('statusDot');
-    const statusLabel = document.getElementById('statusLabel');
-    const recordStatus = document.getElementById('recordStatus');
-    const logEntriesEl = document.getElementById('logEntries');
-    const logCountEl   = document.getElementById('logCount');
+    const recordDot      = document.getElementById('recordDot');
+    const btnRecord      = document.getElementById('btnRecord');
+    const btnTest        = document.getElementById('btnTest');
+    const statusDot      = document.getElementById('statusDot');
+    const statusLabel    = document.getElementById('statusLabel');
+    const recordStatus   = document.getElementById('recordStatus');
+    const logEntriesEl   = document.getElementById('logEntries');
+    const logCountEl     = document.getElementById('logCount');
     const serverUrlInput = document.getElementById('serverUrl');
     const filePathInput  = document.getElementById('filePath');
 
     function setConnectionStatus(connected) {
-      statusDot.className   = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+      statusDot.className    = 'status-dot ' + (connected ? 'connected' : 'disconnected');
       statusLabel.textContent = connected ? '연결됨' : '연결 실패';
     }
 
     function setRecording(recording) {
       isRecording = recording;
       recordDot.className = 'record-dot' + (recording ? ' active' : '');
-
       if (recording) {
-        btnRecord.textContent = '■  기록 중지';
-        btnRecord.className   = 'btn btn-danger btn-record';
+        btnRecord.textContent   = '■  기록 중지';
+        btnRecord.className     = 'btn btn-danger btn-record';
         recordStatus.textContent = '기록 중...';
-        serverUrlInput.disabled = true;
-        filePathInput.disabled  = true;
-        btnTest.disabled = true;
+        serverUrlInput.disabled  = true;
+        filePathInput.disabled   = true;
+        btnTest.disabled         = true;
       } else {
-        btnRecord.textContent = '▶  기록 시작';
-        btnRecord.className   = 'btn btn-primary btn-record';
+        btnRecord.textContent   = '▶  기록 시작';
+        btnRecord.className     = 'btn btn-primary btn-record';
         recordStatus.textContent = '기록 중지됨 — 파일에 저장되었습니다';
-        serverUrlInput.disabled = false;
-        filePathInput.disabled  = false;
-        btnTest.disabled = false;
+        serverUrlInput.disabled  = false;
+        filePathInput.disabled   = false;
+        btnTest.disabled         = false;
       }
     }
 
@@ -303,7 +228,6 @@
       if (text.includes('[생성]') || text.includes('[스타일 생성]')) return 'create';
       if (text.includes('[삭제]') || text.includes('[스타일 삭제]')) return 'delete';
       if (text.includes('[변경]') || text.includes('[스타일 변경]')) return 'change';
-      if (text.includes('기록 시작') || text.includes('기록 종료'))  return 'system';
       return 'system';
     }
 
@@ -312,34 +236,63 @@
       if (empty) empty.remove();
 
       const el = document.createElement('div');
-      el.className = 'log-entry ' + cls;
+      el.className   = 'log-entry ' + cls;
       el.textContent = text.length > 110 ? text.slice(0, 107) + '…' : text;
-      el.title = text;
+      el.title       = text;
       logEntriesEl.insertBefore(el, logEntriesEl.firstChild);
 
       entryCount++;
       logCountEl.textContent = entryCount + '개';
 
-      // 최대치 초과 시 마지막 항목 제거
       if (logEntriesEl.children.length > MAX_ENTRIES) {
         logEntriesEl.removeChild(logEntriesEl.lastChild);
       }
     }
 
-    // 연결 테스트
-    btnTest.addEventListener('click', () => {
-      const url = serverUrlInput.value.trim();
+    // UI가 직접 서버에 fetch — Figma 샌드박스(code.ts)에서 localhost fetch 불가
+    async function sendLog(entry) {
+      const url  = serverUrlInput.value.trim();
+      const path = filePathInput.value.trim();
+      if (!url || !path) return;
+
+      try {
+        const res = await fetch(url + '/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entry: entry, filePath: path }),
+        });
+        if (res.ok) {
+          addLogEntry(entry, getEntryClass(entry));
+        } else {
+          var errText = await res.text();
+          addLogEntry('서버 오류: ' + errText, 'error');
+          if (isRecording) recordStatus.textContent = '⚠ 서버 오류: ' + errText;
+        }
+      } catch (e) {
+        addLogEntry('서버 연결 실패', 'error');
+        if (isRecording) recordStatus.textContent = '⚠ 서버 연결 실패 — 서버 실행 여부를 확인하세요';
+      }
+    }
+
+    // 연결 테스트 — UI에서 직접 fetch
+    btnTest.addEventListener('click', async function() {
+      var url = serverUrlInput.value.trim();
       if (!url) return;
       statusLabel.textContent = '확인 중…';
       statusDot.className = 'status-dot';
-      parent.postMessage({ pluginMessage: { type: 'check-connection', serverUrl: url } }, '*');
+      try {
+        var res = await fetch(url + '/health');
+        setConnectionStatus(res.ok);
+      } catch (e) {
+        setConnectionStatus(false);
+      }
     });
 
     // 기록 시작 / 중지
-    btnRecord.addEventListener('click', () => {
+    btnRecord.addEventListener('click', function() {
       if (!isRecording) {
-        const url  = serverUrlInput.value.trim();
-        const path = filePathInput.value.trim();
+        var url  = serverUrlInput.value.trim();
+        var path = filePathInput.value.trim();
         if (!url || !path) {
           recordStatus.textContent = '⚠ 서버 URL과 저장 경로를 모두 입력하세요';
           return;
@@ -352,19 +305,15 @@
       }
     });
 
-    // 플러그인 코드에서 오는 메시지 수신
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage;
+    // 플러그인 코드(code.ts)에서 오는 메시지 수신
+    window.onmessage = function(event) {
+      var msg = event.data.pluginMessage;
       if (!msg) return;
 
       switch (msg.type) {
         case 'init-settings':
           serverUrlInput.value = msg.serverUrl || 'http://localhost:3000';
           filePathInput.value  = msg.filePath  || '';
-          break;
-
-        case 'connection-status':
-          setConnectionStatus(msg.connected);
           break;
 
         case 'recording-started':
@@ -375,13 +324,9 @@
           setRecording(false);
           break;
 
-        case 'log-success':
-          addLogEntry(msg.entry, getEntryClass(msg.entry));
-          break;
-
-        case 'log-error':
-          addLogEntry('오류: ' + msg.message, 'error');
-          recordStatus.textContent = '⚠ ' + msg.message;
+        // code.ts가 감지한 변경 항목을 UI로 전달 → UI가 서버에 전송
+        case 'send-log':
+          sendLog(msg.entry);
           break;
       }
     };

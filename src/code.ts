@@ -97,7 +97,7 @@ function formatChange(change: DocumentChange): string | null {
         return `[${ts}] [생성] "${change.node.name}" (${typeName}) - 페이지: ${pageName}`;
       }
       case 'DELETE': {
-        if (!isSceneNode(change.node)) return `[${ts}] [삭제] (노드 정보 없음)`;
+        if (!isSceneNode(change.node)) return `[${getTimestamp()}] [삭제] (노드 정보 없음)`;
         const typeName = NODE_TYPE_KR[change.node.type] ?? change.node.type;
         const pageName = getPageName(change.node);
         return `[${ts}] [삭제] "${change.node.name}" (${typeName}) - 페이지: ${pageName}`;
@@ -121,29 +121,13 @@ function formatChange(change: DocumentChange): string | null {
         return null;
     }
   } catch {
-    return `[${ts}] [변경 감지] (상세 정보 접근 불가)`;
+    return `[${getTimestamp()}] [변경 감지] (상세 정보 접근 불가)`;
   }
 }
 
-async function sendLog(entry: string): Promise<void> {
-  try {
-    const res = await fetch(`${serverUrl}/log`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry, filePath }),
-    });
-    if (res.ok) {
-      figma.ui.postMessage({ type: 'log-success', entry });
-    } else {
-      const errText = await res.text();
-      figma.ui.postMessage({ type: 'log-error', message: `서버 오류: ${errText}` });
-    }
-  } catch {
-    figma.ui.postMessage({
-      type: 'log-error',
-      message: '서버 연결 실패 - 서버가 실행 중인지 확인하세요',
-    });
-  }
+// 로그 항목을 UI로 전달 (UI가 직접 서버에 fetch)
+function relayLog(entry: string): void {
+  figma.ui.postMessage({ type: 'send-log', entry });
 }
 
 // 문서 변경 이벤트 감지 (기록 중일 때만 처리)
@@ -151,7 +135,7 @@ figma.on('documentchange', (event: DocumentChangeEvent) => {
   if (!isRecording) return;
   for (const change of event.documentChanges) {
     const entry = formatChange(change);
-    if (entry) sendLog(entry);
+    if (entry) relayLog(entry);
   }
 });
 
@@ -173,7 +157,7 @@ figma.ui.onmessage = async (msg: {
 
       const ts     = getTimestamp();
       const header = `\n${'='.repeat(60)}\n기록 시작: ${ts}\n${'='.repeat(60)}\n`;
-      await sendLog(header);
+      relayLog(header);
 
       figma.ui.postMessage({ type: 'recording-started' });
       break;
@@ -184,20 +168,9 @@ figma.ui.onmessage = async (msg: {
 
       const ts     = getTimestamp();
       const footer = `기록 종료: ${ts}\n${'='.repeat(60)}\n`;
-      await sendLog(footer);
+      relayLog(footer);
 
       figma.ui.postMessage({ type: 'recording-stopped' });
-      break;
-    }
-
-    case 'check-connection': {
-      const url = msg.serverUrl ?? serverUrl;
-      try {
-        const res = await fetch(`${url}/health`);
-        figma.ui.postMessage({ type: 'connection-status', connected: res.ok });
-      } catch {
-        figma.ui.postMessage({ type: 'connection-status', connected: false });
-      }
       break;
     }
 
@@ -211,7 +184,7 @@ figma.ui.onmessage = async (msg: {
       if (isRecording) {
         isRecording = false;
         const ts = getTimestamp();
-        await sendLog(`기록 종료 (플러그인 닫힘): ${ts}\n${'='.repeat(60)}\n`);
+        relayLog(`기록 종료 (플러그인 닫힘): ${ts}\n${'='.repeat(60)}\n`);
       }
       figma.closePlugin();
       break;
