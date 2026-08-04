@@ -15,7 +15,16 @@
       display: flex; align-items: center; gap: 8px;
       padding: 11px 16px; border-bottom: 1px solid #e5e5e5; flex-shrink: 0;
     }
-    .header-title { font-weight: 600; font-size: 13px; }
+    .header-title { font-weight: 600; font-size: 13px; flex: 1; }
+
+    /* ── Lang toggle ── */
+    .lang-toggle { display: flex; gap: 2px; flex-shrink: 0; }
+    .lang-btn {
+      height: 22px; padding: 0 7px; border: 1px solid #e0e0e0; border-radius: 3px;
+      font-size: 10px; font-family: inherit; font-weight: 500;
+      cursor: pointer; background: #fff; color: #888; transition: all .15s;
+    }
+    .lang-btn.active { background: #1e1e1e; color: #fff; border-color: #1e1e1e; }
     .record-dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: #d0d0d0; flex-shrink: 0; transition: background .3s;
@@ -114,6 +123,10 @@
   <div class="header">
     <div class="record-dot" id="recordDot"></div>
     <div class="header-title">Work Logger</div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="btnKo">한국어</button>
+      <button class="lang-btn"        id="btnEn">English</button>
+    </div>
   </div>
 
   <!-- 모니터링 대상: URL 입력 또는 선택 -->
@@ -165,9 +178,12 @@
     var layerOk         = false;
     var targetNodeId    = '';  // 실제 Figma node ID (URL이 아님)
     var textLayerNodeId = '';
+    var lang            = 'ko';
 
     var recordDot        = document.getElementById('recordDot');
     var btnRecord        = document.getElementById('btnRecord');
+    var btnKo            = document.getElementById('btnKo');
+    var btnEn            = document.getElementById('btnEn');
     var btnValidateTarget = document.getElementById('btnValidateTarget');
     var btnSelectTarget  = document.getElementById('btnSelectTarget');
     var btnSelectLayer   = document.getElementById('btnSelectLayer');
@@ -253,6 +269,15 @@
       parent.postMessage({ pluginMessage: { type: 'use-selection', field: 'textLayer' } }, '*');
     });
 
+    // 언어 토글
+    function setLang(l) {
+      lang = l;
+      btnKo.classList.toggle('active', l === 'ko');
+      btnEn.classList.toggle('active', l === 'en');
+    }
+    btnKo.addEventListener('click', function() { setLang('ko'); });
+    btnEn.addEventListener('click', function() { setLang('en'); });
+
     // 기록 시작 / 중지
     btnRecord.addEventListener('click', function() {
       if (!isRecording) {
@@ -261,6 +286,7 @@
             type: 'start-recording',
             targetNodeId:    targetNodeId,
             textLayerNodeId: textLayerNodeId,
+            lang:            lang,
           }
         }, '*');
       } else {
@@ -293,6 +319,7 @@
       switch (msg.type) {
         // 저장된 node ID 복원 — 이름은 알 수 없으므로 ID만 표시
         case 'init-node-ids':
+          if (msg.lang) setLang(msg.lang);
           if (msg.targetNodeId) {
             targetNodeId = msg.targetNodeId;
             targetOk = true;

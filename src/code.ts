@@ -43,6 +43,10 @@ interface Change {
   nodeType: string;
 }
 
+// ── 언어 타입 ─────────────────────────────────────────────────────────────────
+
+type Lang = 'ko' | 'en';
+
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
 const NODE_TYPE_KR: Record<string, string> = {
@@ -52,12 +56,34 @@ const NODE_TYPE_KR: Record<string, string> = {
   BOOLEAN_OPERATION: '불린 연산', STAR: '별', POLYGON: '다각형',
 };
 
+const NODE_TYPE_EN: Record<string, string> = {
+  FRAME: 'Frame', GROUP: 'Group', TEXT: 'Text', RECTANGLE: 'Rect',
+  ELLIPSE: 'Ellipse', LINE: 'Line', VECTOR: 'Vector', COMPONENT: 'Component',
+  COMPONENT_SET: 'Comp.Set', INSTANCE: 'Instance', SECTION: 'Section',
+  BOOLEAN_OPERATION: 'Boolean', STAR: 'Star', POLYGON: 'Polygon',
+};
+
+const DETAIL_LABEL_EN: Record<string, string> = {
+  '이름': 'name', '표시 여부': 'visibility', '불투명도': 'opacity',
+  '위치': 'position', '크기': 'size', '회전': 'rotation',
+  '채우기': 'fill', '테두리': 'stroke', '효과': 'effect',
+  '모서리 반경': 'corner-radius', '텍스트': 'text',
+  '글자 크기': 'font-size', '글꼴': 'font',
+  '레이아웃': 'layout', '제약': 'constraints',
+  '기본축 정렬': 'primary-align', '교차축 정렬': 'counter-align',
+  '패딩': 'padding', '간격': 'gap',
+  '정렬(부모 내)': 'self-align', '늘이기(grow)': 'grow',
+  '배리언트': 'variant', '컴포넌트 속성': 'component-props',
+  '변수 연결': 'variable',
+};
+
 // ── 상태 ─────────────────────────────────────────────────────────────────────
 
 let isRecording      = false;
 let targetNodeId:    string | null = null;
 let textLayerNodeId: string | null = null;
 let beforeSnapshot:  NodeSnap | null = null;
+let lang:            Lang = 'ko';
 
 // ── UI 초기화 ─────────────────────────────────────────────────────────────────
 
@@ -66,7 +92,9 @@ figma.showUI(__html__, { width: 380, height: 520, title: 'Work Logger' });
 (async () => {
   const savedTarget    = await figma.clientStorage.getAsync('targetNodeId')    as string | undefined;
   const savedTextLayer = await figma.clientStorage.getAsync('textLayerNodeId') as string | undefined;
-  figma.ui.postMessage({ type: 'init-node-ids', targetNodeId: savedTarget ?? '', textLayerNodeId: savedTextLayer ?? '' });
+  const savedLang      = await figma.clientStorage.getAsync('lang')            as string | undefined;
+  if (savedLang === 'en') lang = 'en';
+  figma.ui.postMessage({ type: 'init-node-ids', targetNodeId: savedTarget ?? '', textLayerNodeId: savedTextLayer ?? '', lang });
 })();
 
 // ── 헬퍼: Figma URL → node-id 변환 ───────────────────────────────────────────
@@ -379,7 +407,66 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
     if (diffs.length > 0) changes.push({ kind: 'CHANGED', path, details: diffs, nodeType: a.type });
   }
 
-  return changes;
+  // ① 계층 상위 노드 먼저 (path depth 기준 오름차순 정렬)
+  const depth = (p: string) => (p.match(/"([^"]+)"/g) ?? []).length;
+  changes.sort((a, b) => depth(a.path) - depth(b.path));
+
+  // ② REMOVED + ADDED 쌍 병합 (이름 변경·재생성 오인식 방지)
+  return reconcile(changes);
+}
+
+// ── 헬퍼: REMOVED+ADDED 병합 (같은 부모·같은 유형 1:1 매칭) ──────────────────
+
+function pathParent(path: string): string {
+  const segs = path.match(/"([^"]+)"/g) ?? [];
+  return segs.slice(0, -1).join('/');
+}
+
+function pathLast(path: string): string {
+  const segs = path.match(/"([^"]+)"/g) ?? [];
+  return segs.length ? segs[segs.length - 1].replace(/"/g, '') : path;
+}
+
+function reconcile(changes: Change[]): Change[] {
+  const removed = changes.filter(c => c.kind === 'REMOVED');
+  const added   = changes.filter(c => c.kind === 'ADDED');
+  const other   = changes.filter(c => c.kind === 'CHANGED');
+  if (!removed.length || !added.length) return changes;
+
+  // 부모 경로 + 노드 유형으로 그룹핑
+  const rGroups = new Map<string, Change[]>();
+  const aGroups = new Map<string, Change[]>();
+  for (const r of removed) {
+    const k = `${pathParent(r.path)}::${r.nodeType}`;
+    (rGroups.get(k) ?? rGroups.set(k, []).get(k)!).push(r);
+  }
+  for (const a of added) {
+    const k = `${pathParent(a.path)}::${a.nodeType}`;
+    (aGroups.get(k) ?? aGroups.set(k, []).get(k)!).push(a);
+  }
+
+  const matchedR = new Set<Change>(), matchedA = new Set<Change>();
+  const merged:   Change[] = [];
+
+  for (const [key, rGroup] of rGroups) {
+    const aGroup = aGroups.get(key);
+    if (!aGroup || rGroup.length !== 1 || aGroup.length !== 1) continue;
+    const r = rGroup[0], a = aGroup[0];
+    matchedR.add(r); matchedA.add(a);
+
+    const rName = pathLast(r.path), aName = pathLast(a.path);
+    const details: string[] = [];
+    if (rName !== aName) details.push(`이름: "${rName}" → "${aName}"`);
+    details.push(...a.details);
+    merged.push({ kind: 'CHANGED', path: a.path, nodeType: a.nodeType, details });
+  }
+
+  return [
+    ...added.filter(a => !matchedA.has(a)),
+    ...removed.filter(r => !matchedR.has(r)),
+    ...merged,
+    ...other,
+  ];
 }
 
 // ── 헬퍼: 컨텍스트 경로 + 컴팩트 포맷 ──────────────────────────────────────
@@ -401,75 +488,91 @@ function getContext(path: string): string {
 }
 
 // detail 한 줄을 들여쓰기된 compact 형식으로 변환 (여러 줄 반환 가능)
-function fmtDetail(detail: string): string[] {
-  // 변수 연결: field[before→after], ... → 필드별 분리
+function fmtDetail(detail: string, l: Lang): string[] {
+  // 변수 연결: field[before→after] → 필드별 분리
   if (detail.startsWith('변수 연결:')) {
     const re = /(\w+)\[([^\]]+)→([^\]]+)\]/g;
     const lines: string[] = [];
     let m: RegExpExecArray | null;
     while ((m = re.exec(detail)) !== null) {
-      const field = VAR_FIELD_KR[m[1]] ?? m[1];
-      const from  = m[2].trim(), to = m[3].trim();
-      if (from === '없음') lines.push(`    변수(${field}): 없음 → ${to}`);
-      else if (to === '없음') lines.push(`    변수(${field}): ${from} → 해제`);
-      else lines.push(`    변수(${field}): ${from} → ${to}`);
+      const fieldKo = VAR_FIELD_KR[m[1]] ?? m[1];
+      const fieldEn = DETAIL_LABEL_EN[fieldKo] ?? fieldKo;
+      const field   = l === 'en' ? fieldEn : fieldKo;
+      const prefix  = l === 'en' ? `variable(${field})` : `변수(${field})`;
+      const from = m[2].trim(), to = m[3].trim();
+      const none = l === 'en' ? 'none' : '없음';
+      const removed = l === 'en' ? 'removed' : '해제';
+      if (from === '없음') lines.push(`    ${prefix}: ${none} → ${to}`);
+      else if (to === '없음') lines.push(`    ${prefix}: ${from} → ${removed}`);
+      else lines.push(`    ${prefix}: ${from} → ${to}`);
     }
     return lines.length ? lines : [`    ${detail}`];
   }
-  // 일반: "label: value → value" 형태 그대로, 들여쓰기만 추가
+  // 일반: label 번역 후 들여쓰기
+  if (l === 'en') {
+    const idx = detail.indexOf(':');
+    if (idx > 0) {
+      const label = detail.slice(0, idx).trim();
+      const value = detail.slice(idx + 1).trim();
+      const enLabel = DETAIL_LABEL_EN[label] ?? label;
+      return [`    ${enLabel}: ${value}`];
+    }
+  }
   return [`    ${detail}`];
 }
 
 // ── 헬퍼: 히스토리 포맷팅 ────────────────────────────────────────────────────
 
-function formatHistory(changes: Change[], targetName: string, ts: string): string {
-  const bar = '═'.repeat(48);
+function formatHistory(changes: Change[], targetName: string, ts: string, l: Lang): string {
+  const bar  = '═'.repeat(48);
+  const isEn = l === 'en';
+
   const added    = changes.filter(c => c.kind === 'ADDED');
   const removed  = changes.filter(c => c.kind === 'REMOVED');
   const modified = changes.filter(c => c.kind === 'CHANGED');
 
   const propCount = modified.reduce((s, c) => s + c.details.length, 0);
-  const summary   = `노드 ${changes.length}개 영향 | 속성 ${propCount}건`;
+  const summary   = isEn
+    ? `${changes.length} node(s) | ${propCount} prop(s)`
+    : `노드 ${changes.length}개 영향 | 속성 ${propCount}건`;
+  const header    = isEn ? `Session log: ${ts}` : `세션 기록: ${ts}`;
+  const target    = isEn ? `Target: "${targetName}" | ${summary}` : `대상: "${targetName}" | ${summary}`;
 
-  const lines: string[] = ['', bar, `세션 기록: ${ts}`, `대상: "${targetName}" | ${summary}`, bar, ''];
+  const nodeLabel = (type: string) =>
+    isEn ? (NODE_TYPE_EN[type] ?? type) : (NODE_TYPE_KR[type] ?? type);
+
+  const lines: string[] = ['', bar, header, target, bar, ''];
 
   if (changes.length === 0) {
-    lines.push('변경 사항 없음');
+    lines.push(isEn ? 'No changes detected.' : '변경 사항 없음');
     lines.push(bar);
     return lines.join('\n');
   }
 
   // ① 추가
   if (added.length > 0) {
-    lines.push(`+ 추가 (${added.length}건)`);
+    lines.push(isEn ? `+ ADDED (${added.length})` : `+ 추가 (${added.length}건)`);
     added.forEach(c => {
-      const ctx  = getContext(c.path);
-      const type = NODE_TYPE_KR[c.nodeType] ?? c.nodeType;
-      lines.push(`  + ${ctx}  [${type}]`);
+      lines.push(`  + ${getContext(c.path)}  [${nodeLabel(c.nodeType)}]`);
+      c.details.forEach(d => fmtDetail(d, l).forEach(ln => lines.push(ln)));
     });
     lines.push('');
   }
 
   // ② 삭제
   if (removed.length > 0) {
-    lines.push(`- 삭제 (${removed.length}건)`);
-    removed.forEach(c => {
-      const ctx  = getContext(c.path);
-      const type = NODE_TYPE_KR[c.nodeType] ?? c.nodeType;
-      lines.push(`  - ${ctx}  [${type}]`);
-    });
+    lines.push(isEn ? `- REMOVED (${removed.length})` : `- 삭제 (${removed.length}건)`);
+    removed.forEach(c => lines.push(`  - ${getContext(c.path)}  [${nodeLabel(c.nodeType)}]`));
     lines.push('');
   }
 
   // ③ 속성 변경 — 노드별 블록
   if (modified.length > 0) {
-    lines.push(`~ 속성 변경 (${modified.length}개 노드)`);
+    lines.push(isEn ? `~ CHANGED (${modified.length} nodes)` : `~ 속성 변경 (${modified.length}개 노드)`);
     lines.push('');
     modified.forEach(c => {
-      const ctx  = getContext(c.path);
-      const type = NODE_TYPE_KR[c.nodeType] ?? c.nodeType;
-      lines.push(`  ■ ${ctx}  [${type}]`);
-      c.details.forEach(d => fmtDetail(d).forEach(l => lines.push(l)));
+      lines.push(`  ■ ${getContext(c.path)}  [${nodeLabel(c.nodeType)}]`);
+      c.details.forEach(d => fmtDetail(d, l).forEach(ln => lines.push(ln)));
       lines.push('');
     });
   }
@@ -526,6 +629,7 @@ figma.ui.onmessage = async (msg: {
   field?: string;
   targetNodeId?: string;
   textLayerNodeId?: string;
+  lang?: string;
 }) => {
   switch (msg.type) {
 
@@ -579,8 +683,10 @@ figma.ui.onmessage = async (msg: {
       }
       targetNodeId    = tNodeId;
       textLayerNodeId = tlNodeId;
+      lang = (msg.lang === 'en') ? 'en' : 'ko';
       await figma.clientStorage.setAsync('targetNodeId',    tNodeId);
       await figma.clientStorage.setAsync('textLayerNodeId', tlNodeId);
+      await figma.clientStorage.setAsync('lang',            lang);
       beforeSnapshot = snapNode(node as SceneNode);
       isRecording    = true;
       figma.ui.postMessage({ type: 'recording-started', targetName: (node as SceneNode).name });
@@ -599,7 +705,7 @@ figma.ui.onmessage = async (msg: {
       }
       const afterSnapshot = snapNode(node as SceneNode);
       const changes       = compareSnapshots(beforeSnapshot, afterSnapshot);
-      const historyText   = formatHistory(changes, afterSnapshot.name, getTimestamp());
+      const historyText   = formatHistory(changes, afterSnapshot.name, getTimestamp(), lang);
       try {
         await appendHistory(textLayerNodeId, historyText);
         isRecording    = false;
