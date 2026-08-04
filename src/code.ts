@@ -71,21 +71,26 @@ function parseNodeId(input: string): string | null {
 
 // ── 헬퍼: 속성 직렬화 ────────────────────────────────────────────────────────
 
-function rgb255(c: RGB): string {
-  return `${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)}`;
+// RGB(0-1) → #RRGGBB
+function toHex(c: RGB): string {
+  return '#' + [c.r, c.g, c.b]
+    .map(v => Math.round(v * 255).toString(16).padStart(2, '0').toUpperCase())
+    .join('');
 }
 
 function serializePaint(p: Paint): string {
   if (p.type === 'SOLID') {
-    return `solid(${rgb255(p.color)},${Math.round((p.opacity ?? 1) * 100)}%)`;
+    const hex  = toHex(p.color);
+    const opac = Math.round((p.opacity ?? 1) * 100);
+    return opac < 100 ? `${hex}(${opac}%)` : hex;
   }
   if (p.type === 'GRADIENT_LINEAR' || p.type === 'GRADIENT_RADIAL' ||
       p.type === 'GRADIENT_ANGULAR' || p.type === 'GRADIENT_DIAMOND') {
-    const gp = p as GradientPaint;
-    const stops = gp.gradientStops.map(s => `${rgb255(s.color)}@${Math.round(s.position * 100)}%`).join(';');
-    return `${p.type.toLowerCase()}(${stops})`;
+    const gp    = p as GradientPaint;
+    const stops = gp.gradientStops.map(s => toHex(s.color)).join('-');
+    return `그라디언트(${stops})`;
   }
-  return p.type;
+  return p.type === 'IMAGE' ? '이미지' : p.type;
 }
 
 function serializePaints(paints: readonly Paint[]): string {
@@ -98,14 +103,27 @@ function serializePaints(paints: readonly Paint[]): string {
 function serializeEffects(effects: readonly Effect[]): string {
   return effects.filter(e => e.visible !== false).map(e => {
     if (e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') {
-      const s = e as DropShadowEffect;
-      return `${e.type}(${rgb255(s.color)},x${Math.round(s.offset.x)},y${Math.round(s.offset.y)},r${Math.round(s.radius)})`;
+      const s      = e as DropShadowEffect;
+      const typeKR = e.type === 'DROP_SHADOW' ? '드롭섀도' : '이너섀도';
+      return `${typeKR}(${toHex(s.color)},x${Math.round(s.offset.x)},y${Math.round(s.offset.y)},r${Math.round(s.radius)})`;
     }
     if (e.type === 'LAYER_BLUR' || e.type === 'BACKGROUND_BLUR') {
-      return `${e.type}(r${Math.round((e as BlurEffect).radius)})`;
+      const typeKR = e.type === 'LAYER_BLUR' ? '레이어블러' : '배경블러';
+      return `${typeKR}(r${Math.round((e as BlurEffect).radius)})`;
     }
     return e.type;
   }).join('|') || 'none';
+}
+
+// boundVars 문자열 → Map<field, varName>
+function parseBoundVars(bv: string): Map<string, string> {
+  const m = new Map<string, string>();
+  if (!bv) return m;
+  for (const pair of bv.split(';')) {
+    const idx = pair.indexOf(':');
+    if (idx > 0) m.set(pair.slice(0, idx), pair.slice(idx + 1));
+  }
+  return m;
 }
 
 function serializeBoundVars(node: SceneNode): string {
@@ -251,15 +269,30 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
     if (b.rotation !== a.rotation)
       diffs.push(`회전: ${b.rotation}° → ${a.rotation}°`);
     if (b.fills !== undefined && b.fills !== a.fills)
-      diffs.push(`채우기: 변경됨`);
+      diffs.push(`채우기: ${b.fills} → ${a.fills ?? 'none'}`);
     if (b.strokes !== undefined && b.strokes !== a.strokes)
-      diffs.push(`테두리: 변경됨`);
+      diffs.push(`테두리: ${b.strokes} → ${a.strokes ?? 'none'}`);
     if (b.effects !== undefined && b.effects !== a.effects)
-      diffs.push(`효과: 변경됨`);
+      diffs.push(`효과: ${b.effects} → ${a.effects ?? 'none'}`);
     if (b.cornerRadius !== undefined && b.cornerRadius !== a.cornerRadius)
       diffs.push(`모서리 반경: ${b.cornerRadius ?? 0} → ${a.cornerRadius ?? 0}`);
-    if ((b.boundVars ?? '') !== (a.boundVars ?? ''))
-      diffs.push(`변수 연결: 변경됨`);
+    {
+      const bBV = b.boundVars ?? '', aBV = a.boundVars ?? '';
+      if (bBV !== aBV) {
+        const bVars = parseBoundVars(bBV);
+        const aVars = parseBoundVars(aBV);
+        const varDiffs: string[] = [];
+        for (const [field, aVal] of aVars) {
+          const bVal = bVars.get(field);
+          if (!bVal) varDiffs.push(`${field}[없음→${aVal}]`);
+          else if (bVal !== aVal) varDiffs.push(`${field}[${bVal}→${aVal}]`);
+        }
+        for (const [field, bVal] of bVars) {
+          if (!aVars.has(field)) varDiffs.push(`${field}[${bVal}→없음]`);
+        }
+        if (varDiffs.length) diffs.push(`변수 연결: ${varDiffs.join(', ')}`);
+      }
+    }
     if (b.text !== undefined && b.text !== a.text) {
       const clip = (s: string) => s.length > 40 ? s.slice(0, 40) + '…' : s;
       diffs.push(`텍스트: "${clip(b.text)}" → "${clip(a.text ?? '')}"`);
@@ -341,13 +374,41 @@ function changedSentences(c: Change): string[] {
         : `"${name}"의 이름이 변경되었습니다.`);
 
     } else if (detail.startsWith('채우기:')) {
-      result.push(`"${name}"의 채우기 색상 또는 스타일이 변경되었습니다.`);
+      const m = detail.match(/채우기: (.+) → (.+)/);
+      if (m) {
+        const from = m[1].trim(), to = m[2].trim();
+        if (from === 'none') {
+          result.push(`"${name}"에 채우기(${to})가 추가되었습니다.`);
+        } else if (to === 'none') {
+          result.push(`"${name}"의 채우기(${from})가 제거되었습니다.`);
+        } else {
+          result.push(`"${name}"의 채우기가 ${from}에서 ${to}으로 변경되었습니다.`);
+        }
+      } else {
+        result.push(`"${name}"의 채우기가 변경되었습니다.`);
+      }
 
     } else if (detail.startsWith('테두리:')) {
-      result.push(`"${name}"의 테두리 색상 또는 두께가 변경되었습니다.`);
+      const m = detail.match(/테두리: (.+) → (.+)/);
+      if (m) {
+        const from = m[1].trim(), to = m[2].trim();
+        if (from === 'none') result.push(`"${name}"에 테두리(${to})가 추가되었습니다.`);
+        else if (to === 'none') result.push(`"${name}"의 테두리가 제거되었습니다.`);
+        else result.push(`"${name}"의 테두리가 ${from}에서 ${to}으로 변경되었습니다.`);
+      } else {
+        result.push(`"${name}"의 테두리가 변경되었습니다.`);
+      }
 
     } else if (detail.startsWith('효과:')) {
-      result.push(`"${name}"의 그림자 또는 블러 효과가 변경되었습니다.`);
+      const m = detail.match(/효과: (.+) → (.+)/);
+      if (m) {
+        const from = m[1].trim(), to = m[2].trim();
+        if (from === 'none') result.push(`"${name}"에 효과(${to})가 추가되었습니다.`);
+        else if (to === 'none') result.push(`"${name}"의 효과가 제거되었습니다.`);
+        else result.push(`"${name}"의 효과가 변경되었습니다: ${from} → ${to}`);
+      } else {
+        result.push(`"${name}"의 효과가 변경되었습니다.`);
+      }
 
     } else if (detail.startsWith('불투명도:')) {
       const m = detail.match(/불투명도: (\d+)% → (\d+)%/);
@@ -368,7 +429,26 @@ function changedSentences(c: Change): string[] {
         : `"${name}"의 표시 여부가 변경되었습니다.`);
 
     } else if (detail.startsWith('변수 연결:')) {
-      result.push(`"${name}"에 적용된 변수 연결이 변경되었습니다.`);
+      // "변수 연결: fills[Color/A→Color/B], strokes[없음→Border/X]"
+      const FIELD_KR: Record<string, string> = {
+        fills: '채우기', strokes: '테두리', opacity: '불투명도',
+        width: '너비', height: '높이', itemSpacing: '간격',
+        paddingLeft: '왼쪽 패딩', paddingRight: '오른쪽 패딩',
+        paddingTop: '위쪽 패딩', paddingBottom: '아래쪽 패딩',
+      };
+      const entries = detail.slice('변수 연결:'.length).trim();
+      const re = /(\w+)\[([^\]]+)→([^\]]+)\]/g;
+      let match: RegExpExecArray | null;
+      let found = false;
+      while ((match = re.exec(entries)) !== null) {
+        found = true;
+        const field = FIELD_KR[match[1]] ?? match[1];
+        const from  = match[2].trim(), to = match[3].trim();
+        if (from === '없음') result.push(`"${name}"의 ${field}에 변수 "${to}"가 연결되었습니다.`);
+        else if (to === '없음') result.push(`"${name}"의 ${field}에서 변수 "${from}" 연결이 해제되었습니다.`);
+        else result.push(`"${name}"의 ${field} 변수가 "${from}"에서 "${to}"로 변경되었습니다.`);
+      }
+      if (!found) result.push(`"${name}"의 변수 연결이 변경되었습니다.`);
 
     } else if (detail.startsWith('글자 크기:')) {
       const m = detail.match(/글자 크기: ([\d.]+) → ([\d.]+)/);
