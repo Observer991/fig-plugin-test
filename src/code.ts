@@ -29,6 +29,7 @@ interface Change {
   kind: 'ADDED' | 'REMOVED' | 'CHANGED';
   path: string;
   details: string[];
+  nodeType: string;
 }
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -241,12 +242,12 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
 
   for (const [id, { snap: a, path }] of aMap) {
     if (!bMap.has(id)) {
-      changes.push({ kind: 'ADDED', path, details: [`유형: ${NODE_TYPE_KR[a.type] ?? a.type}`] });
+      changes.push({ kind: 'ADDED', path, details: [], nodeType: a.type });
     }
   }
   for (const [id, { snap: b, path }] of bMap) {
     if (!aMap.has(id)) {
-      changes.push({ kind: 'REMOVED', path, details: [`유형: ${NODE_TYPE_KR[b.type] ?? b.type}`] });
+      changes.push({ kind: 'REMOVED', path, details: [], nodeType: b.type });
     }
   }
 
@@ -304,212 +305,105 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
     if ((b.layoutMode ?? '') !== (a.layoutMode ?? ''))
       diffs.push(`레이아웃: ${b.layoutMode ?? 'NONE'} → ${a.layoutMode ?? 'NONE'}`);
 
-    if (diffs.length > 0) changes.push({ kind: 'CHANGED', path, details: diffs });
+    if (diffs.length > 0) changes.push({ kind: 'CHANGED', path, details: diffs, nodeType: a.type });
   }
 
   return changes;
 }
 
-// ── 헬퍼: 자연어 변환 ────────────────────────────────────────────────────────
+// ── 헬퍼: 컨텍스트 경로 + 컴팩트 포맷 ──────────────────────────────────────
 
-function lastSeg(path: string): string {
-  const m = path.match(/"([^"]+)"/g);
-  return m ? m[m.length - 1].replace(/"/g, '') : path;
+const VAR_FIELD_KR: Record<string, string> = {
+  fills: '채우기', strokes: '테두리', opacity: '불투명도',
+  width: '너비', height: '높이', itemSpacing: '간격',
+  paddingLeft: '왼쪽 패딩', paddingRight: '오른쪽 패딩',
+  paddingTop: '위쪽 패딩', paddingBottom: '아래쪽 패딩',
+};
+
+// '"A" / "B" / "C"' → "B > C" (마지막 2단계만, 이전은 … 생략)
+function getContext(path: string): string {
+  const segs = (path.match(/"([^"]+)"/g) ?? []).map(s => s.replace(/"/g, ''));
+  if (segs.length === 0) return path;
+  if (segs.length === 1) return segs[0];
+  if (segs.length === 2) return `${segs[0]} > ${segs[1]}`;
+  return `···${segs[segs.length - 2]} > ${segs[segs.length - 1]}`;
 }
 
-function parentSeg(path: string): string | null {
-  const m = path.match(/"([^"]+)"/g);
-  return m && m.length >= 2 ? m[m.length - 2].replace(/"/g, '') : null;
-}
-
-function typeLabel(details: string[]): string {
-  const d = details.find(x => x.startsWith('유형:'));
-  return d ? d.slice(4).trim() : '요소';
-}
-
-function ga(word: string): string {
-  const code = word.charCodeAt(word.length - 1);
-  if (code < 0xAC00 || code > 0xD7A3) return '가';
-  return (code - 0xAC00) % 28 === 0 ? '가' : '이';
-}
-
-function addedSentence(c: Change): string {
-  const name = lastSeg(c.path), parent = parentSeg(c.path), type = typeLabel(c.details);
-  if (parent) return `"${name}" ${type}${ga(type)} "${parent}" 안에 추가되었습니다.`;
-  return `"${name}" ${type}${ga(type)} 추가되었습니다.`;
-}
-
-function removedSentence(c: Change): string {
-  const name = lastSeg(c.path), type = typeLabel(c.details);
-  return `"${name}" ${type}${ga(type)} 삭제되었습니다.`;
-}
-
-function changedSentences(c: Change): string[] {
-  const name   = lastSeg(c.path);
-  const result: string[] = [];
-
-  for (const detail of c.details) {
-    if (detail.startsWith('텍스트:')) {
-      const m = detail.match(/텍스트: "([^"]*)" → "([^"]*)"/);
-      result.push(m
-        ? `"${name}"의 텍스트가 "${m[1]}"에서 "${m[2]}"로 수정되었습니다.`
-        : `"${name}"의 텍스트 내용이 변경되었습니다.`);
-
-    } else if (detail.startsWith('크기:')) {
-      const m = detail.match(/크기: (\d+)×(\d+) → (\d+)×(\d+)/);
-      result.push(m
-        ? `"${name}"의 크기가 ${m[1]}×${m[2]}에서 ${m[3]}×${m[4]}로 조정되었습니다.`
-        : `"${name}"의 크기가 변경되었습니다.`);
-
-    } else if (detail.startsWith('위치:')) {
-      const m = detail.match(/위치: \((-?\d+), (-?\d+)\) → \((-?\d+), (-?\d+)\)/);
-      result.push(m
-        ? `"${name}"의 위치가 (${m[1]}, ${m[2]})에서 (${m[3]}, ${m[4]})로 이동했습니다.`
-        : `"${name}"의 위치가 변경되었습니다.`);
-
-    } else if (detail.startsWith('이름:')) {
-      const m = detail.match(/이름: "([^"]+)" → "([^"]+)"/);
-      result.push(m
-        ? `"${m[1]}"의 이름이 "${m[2]}"로 변경되었습니다.`
-        : `"${name}"의 이름이 변경되었습니다.`);
-
-    } else if (detail.startsWith('채우기:')) {
-      const m = detail.match(/채우기: (.+) → (.+)/);
-      if (m) {
-        const from = m[1].trim(), to = m[2].trim();
-        if (from === 'none') {
-          result.push(`"${name}"에 채우기(${to})가 추가되었습니다.`);
-        } else if (to === 'none') {
-          result.push(`"${name}"의 채우기(${from})가 제거되었습니다.`);
-        } else {
-          result.push(`"${name}"의 채우기가 ${from}에서 ${to}으로 변경되었습니다.`);
-        }
-      } else {
-        result.push(`"${name}"의 채우기가 변경되었습니다.`);
-      }
-
-    } else if (detail.startsWith('테두리:')) {
-      const m = detail.match(/테두리: (.+) → (.+)/);
-      if (m) {
-        const from = m[1].trim(), to = m[2].trim();
-        if (from === 'none') result.push(`"${name}"에 테두리(${to})가 추가되었습니다.`);
-        else if (to === 'none') result.push(`"${name}"의 테두리가 제거되었습니다.`);
-        else result.push(`"${name}"의 테두리가 ${from}에서 ${to}으로 변경되었습니다.`);
-      } else {
-        result.push(`"${name}"의 테두리가 변경되었습니다.`);
-      }
-
-    } else if (detail.startsWith('효과:')) {
-      const m = detail.match(/효과: (.+) → (.+)/);
-      if (m) {
-        const from = m[1].trim(), to = m[2].trim();
-        if (from === 'none') result.push(`"${name}"에 효과(${to})가 추가되었습니다.`);
-        else if (to === 'none') result.push(`"${name}"의 효과가 제거되었습니다.`);
-        else result.push(`"${name}"의 효과가 변경되었습니다: ${from} → ${to}`);
-      } else {
-        result.push(`"${name}"의 효과가 변경되었습니다.`);
-      }
-
-    } else if (detail.startsWith('불투명도:')) {
-      const m = detail.match(/불투명도: (\d+)% → (\d+)%/);
-      result.push(m
-        ? `"${name}"의 불투명도가 ${m[1]}%에서 ${m[2]}%로 변경되었습니다.`
-        : `"${name}"의 불투명도가 변경되었습니다.`);
-
-    } else if (detail.startsWith('회전:')) {
-      const m = detail.match(/회전: ([^\s]+)° → ([^\s]+)°/);
-      result.push(m
-        ? `"${name}"이 ${m[1]}°에서 ${m[2]}°로 회전되었습니다.`
-        : `"${name}"의 회전 각도가 변경되었습니다.`);
-
-    } else if (detail.startsWith('표시 여부:')) {
-      const m = detail.match(/표시 여부: (.+) → (.+)/);
-      result.push(m
-        ? `"${name}"이 ${m[1]} 상태에서 ${m[2]} 상태로 변경되었습니다.`
-        : `"${name}"의 표시 여부가 변경되었습니다.`);
-
-    } else if (detail.startsWith('변수 연결:')) {
-      // "변수 연결: fills[Color/A→Color/B], strokes[없음→Border/X]"
-      const FIELD_KR: Record<string, string> = {
-        fills: '채우기', strokes: '테두리', opacity: '불투명도',
-        width: '너비', height: '높이', itemSpacing: '간격',
-        paddingLeft: '왼쪽 패딩', paddingRight: '오른쪽 패딩',
-        paddingTop: '위쪽 패딩', paddingBottom: '아래쪽 패딩',
-      };
-      const entries = detail.slice('변수 연결:'.length).trim();
-      const re = /(\w+)\[([^\]]+)→([^\]]+)\]/g;
-      let match: RegExpExecArray | null;
-      let found = false;
-      while ((match = re.exec(entries)) !== null) {
-        found = true;
-        const field = FIELD_KR[match[1]] ?? match[1];
-        const from  = match[2].trim(), to = match[3].trim();
-        if (from === '없음') result.push(`"${name}"의 ${field}에 변수 "${to}"가 연결되었습니다.`);
-        else if (to === '없음') result.push(`"${name}"의 ${field}에서 변수 "${from}" 연결이 해제되었습니다.`);
-        else result.push(`"${name}"의 ${field} 변수가 "${from}"에서 "${to}"로 변경되었습니다.`);
-      }
-      if (!found) result.push(`"${name}"의 변수 연결이 변경되었습니다.`);
-
-    } else if (detail.startsWith('글자 크기:')) {
-      const m = detail.match(/글자 크기: ([\d.]+) → ([\d.]+)/);
-      result.push(m
-        ? `"${name}"의 글자 크기가 ${m[1]}에서 ${m[2]}으로 변경되었습니다.`
-        : `"${name}"의 글자 크기가 변경되었습니다.`);
-
-    } else if (detail.startsWith('글꼴:')) {
-      const m = detail.match(/글꼴: (.+) → (.+)/);
-      result.push(m
-        ? `"${name}"의 글꼴이 "${m[1]}"에서 "${m[2]}"로 변경되었습니다.`
-        : `"${name}"의 글꼴이 변경되었습니다.`);
-
-    } else if (detail.startsWith('모서리 반경:')) {
-      const m = detail.match(/모서리 반경: (\d+) → (\d+)/);
-      result.push(m
-        ? `"${name}"의 모서리 반경이 ${m[1]}에서 ${m[2]}으로 변경되었습니다.`
-        : `"${name}"의 모서리 반경이 변경되었습니다.`);
-
-    } else if (detail.startsWith('레이아웃:')) {
-      result.push(`"${name}"의 오토 레이아웃 설정이 변경되었습니다.`);
-
-    } else {
-      result.push(`"${name}"에서 변경이 감지되었습니다: ${detail}`);
+// detail 한 줄을 들여쓰기된 compact 형식으로 변환 (여러 줄 반환 가능)
+function fmtDetail(detail: string): string[] {
+  // 변수 연결: field[before→after], ... → 필드별 분리
+  if (detail.startsWith('변수 연결:')) {
+    const re = /(\w+)\[([^\]]+)→([^\]]+)\]/g;
+    const lines: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(detail)) !== null) {
+      const field = VAR_FIELD_KR[m[1]] ?? m[1];
+      const from  = m[2].trim(), to = m[3].trim();
+      if (from === '없음') lines.push(`    변수(${field}): 없음 → ${to}`);
+      else if (to === '없음') lines.push(`    변수(${field}): ${from} → 해제`);
+      else lines.push(`    변수(${field}): ${from} → ${to}`);
     }
+    return lines.length ? lines : [`    ${detail}`];
   }
-  return result;
+  // 일반: "label: value → value" 형태 그대로, 들여쓰기만 추가
+  return [`    ${detail}`];
 }
 
 // ── 헬퍼: 히스토리 포맷팅 ────────────────────────────────────────────────────
 
 function formatHistory(changes: Change[], targetName: string, ts: string): string {
-  const bar1 = '═'.repeat(44);
-  const bar2 = '─'.repeat(44);
+  const bar = '═'.repeat(48);
   const added    = changes.filter(c => c.kind === 'ADDED');
   const removed  = changes.filter(c => c.kind === 'REMOVED');
   const modified = changes.filter(c => c.kind === 'CHANGED');
 
-  const lines: string[] = ['', bar1, `세션 기록: ${ts}`, `대상: "${targetName}"`, bar1, ''];
+  const propCount = modified.reduce((s, c) => s + c.details.length, 0);
+  const summary   = `노드 ${changes.length}개 영향 | 속성 ${propCount}건`;
+
+  const lines: string[] = ['', bar, `세션 기록: ${ts}`, `대상: "${targetName}" | ${summary}`, bar, ''];
 
   if (changes.length === 0) {
-    lines.push('이번 세션에서 변경된 내용이 없습니다.');
-  } else {
-    lines.push(`이번 세션에서 총 ${changes.length}건의 변경이 감지되었습니다.`, '');
-    if (added.length > 0) {
-      lines.push(`[신규 추가 — ${added.length}건]`);
-      added.forEach(c => lines.push('  • ' + addedSentence(c)));
-      lines.push('');
-    }
-    if (removed.length > 0) {
-      lines.push(`[삭제 — ${removed.length}건]`);
-      removed.forEach(c => lines.push('  • ' + removedSentence(c)));
-      lines.push('');
-    }
-    if (modified.length > 0) {
-      lines.push(`[속성 변경 — ${modified.length}건]`);
-      modified.forEach(c => changedSentences(c).forEach(s => lines.push('  • ' + s)));
-      lines.push('');
-    }
+    lines.push('변경 사항 없음');
+    lines.push(bar);
+    return lines.join('\n');
   }
-  lines.push(bar2);
+
+  // ① 추가
+  if (added.length > 0) {
+    lines.push(`+ 추가 (${added.length}건)`);
+    added.forEach(c => {
+      const ctx  = getContext(c.path);
+      const type = NODE_TYPE_KR[c.nodeType] ?? c.nodeType;
+      lines.push(`  + ${ctx}  [${type}]`);
+    });
+    lines.push('');
+  }
+
+  // ② 삭제
+  if (removed.length > 0) {
+    lines.push(`- 삭제 (${removed.length}건)`);
+    removed.forEach(c => {
+      const ctx  = getContext(c.path);
+      const type = NODE_TYPE_KR[c.nodeType] ?? c.nodeType;
+      lines.push(`  - ${ctx}  [${type}]`);
+    });
+    lines.push('');
+  }
+
+  // ③ 속성 변경 — 노드별 블록
+  if (modified.length > 0) {
+    lines.push(`~ 속성 변경 (${modified.length}개 노드)`);
+    lines.push('');
+    modified.forEach(c => {
+      const ctx  = getContext(c.path);
+      const type = NODE_TYPE_KR[c.nodeType] ?? c.nodeType;
+      lines.push(`  ■ ${ctx}  [${type}]`);
+      c.details.forEach(d => fmtDetail(d).forEach(l => lines.push(l)));
+      lines.push('');
+    });
+  }
+
+  lines.push(bar);
   return lines.join('\n');
 }
 
