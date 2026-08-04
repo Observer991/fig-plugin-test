@@ -10,9 +10,9 @@ interface NodeSnap {
   visible:  boolean;
   opacity:  number;
   rotation: number;
-  fills?:       string;
-  strokes?:     string;
-  effects?:     string;
+  fills?:        string;
+  strokes?:      string;
+  effects?:      string;
   cornerRadius?: number;
   // 변수 연결
   boundVars?: string;
@@ -20,8 +20,19 @@ interface NodeSnap {
   text?:       string;
   fontSize?:   number;
   fontFamily?: string;
-  // 오토레이아웃
-  layoutMode?: string;
+  // 레이아웃 제약 & 정렬
+  constraints?:       string;  // "H:LEFT,V:TOP"
+  layoutAlign?:       string;  // 부모 오토레이아웃 내 정렬
+  layoutGrow?:        number;  // flex grow (0 or 1)
+  // 오토레이아웃 (프레임 자체)
+  layoutMode?:          string;
+  primaryAlignItems?:   string;
+  counterAlignItems?:   string;
+  padding?:             string;  // "top/right/bottom/left"
+  itemSpacing?:         number;
+  // 컴포넌트 시스템
+  variantProps?:    string;  // COMPONENT 노드의 variant key=value
+  componentProps?:  string;  // INSTANCE 노드의 override property:value
   children?: NodeSnap[];
 }
 
@@ -208,9 +219,37 @@ function snapNode(node: SceneNode): NodeSnap {
     }
   }
 
-  // 오토레이아웃
+  // 제약 (constraints)
+  if ('constraints' in node && n.constraints) {
+    const c = n.constraints as { horizontal: string; vertical: string };
+    snap.constraints = `H:${c.horizontal},V:${c.vertical}`;
+  }
+
+  // 오토레이아웃 (프레임 자체 설정)
   if ('layoutMode' in node && n.layoutMode && n.layoutMode !== 'NONE') {
-    snap.layoutMode = n.layoutMode as string;
+    snap.layoutMode        = n.layoutMode as string;
+    snap.primaryAlignItems = n.primaryAxisAlignItems as string | undefined;
+    snap.counterAlignItems = n.counterAxisAlignItems as string | undefined;
+    const pad = `${n.paddingTop ?? 0}/${n.paddingRight ?? 0}/${n.paddingBottom ?? 0}/${n.paddingLeft ?? 0}`;
+    if (pad !== '0/0/0/0') snap.padding = pad;
+    if (typeof n.itemSpacing === 'number' && n.itemSpacing !== 0) snap.itemSpacing = n.itemSpacing;
+  }
+
+  // 오토레이아웃 자식 정렬
+  if (n.layoutAlign && n.layoutAlign !== 'INHERIT') snap.layoutAlign = n.layoutAlign as string;
+  if (typeof n.layoutGrow === 'number' && n.layoutGrow !== 0) snap.layoutGrow = n.layoutGrow;
+
+  // 배리언트 속성 (COMPONENT = 개별 variant 노드)
+  if (node.type === 'COMPONENT' && n.variantProperties) {
+    snap.variantProps = Object.entries(n.variantProperties as Record<string, string>)
+      .map(([k, v]) => `${k}=${v}`).sort().join(',');
+  }
+
+  // 컴포넌트 인스턴스 속성 (INSTANCE = 배치된 인스턴스 override)
+  if (node.type === 'INSTANCE' && n.componentProperties) {
+    const cp = n.componentProperties as Record<string, { value: string | boolean }>;
+    snap.componentProps = Object.entries(cp)
+      .map(([k, p]) => `${k.split('#')[0]}:${p.value}`).sort().join(',');
   }
 
   // 자식 노드
@@ -233,6 +272,20 @@ function flatten(snap: NodeSnap, parentPath = ''): Map<string, { snap: NodeSnap;
   return map;
 }
 
+// ── 헬퍼: 신규 추가 노드의 초기 속성 요약 ────────────────────────────────────
+
+function addedDetails(snap: NodeSnap): string[] {
+  const d: string[] = [];
+  if (snap.variantProps)   d.push(`배리언트: ${snap.variantProps}`);
+  if (snap.componentProps) d.push(`컴포넌트 속성: ${snap.componentProps}`);
+  if (snap.fills && snap.fills !== 'none') d.push(`채우기: ${snap.fills}`);
+  if (snap.strokes && snap.strokes !== 'none') d.push(`테두리: ${snap.strokes}`);
+  if (snap.w && snap.h)    d.push(`크기: ${snap.w}×${snap.h}`);
+  if (snap.constraints)    d.push(`제약: ${snap.constraints}`);
+  if (snap.text)           d.push(`텍스트: "${snap.text.length > 40 ? snap.text.slice(0, 40) + '…' : snap.text}"`);
+  return d;
+}
+
 // ── 헬퍼: 스냅샷 비교 ────────────────────────────────────────────────────────
 
 function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
@@ -242,7 +295,7 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
 
   for (const [id, { snap: a, path }] of aMap) {
     if (!bMap.has(id)) {
-      changes.push({ kind: 'ADDED', path, details: [], nodeType: a.type });
+      changes.push({ kind: 'ADDED', path, details: addedDetails(a), nodeType: a.type });
     }
   }
   for (const [id, { snap: b, path }] of bMap) {
@@ -304,6 +357,24 @@ function compareSnapshots(before: NodeSnap, after: NodeSnap): Change[] {
       diffs.push(`글꼴: ${b.fontFamily} → ${a.fontFamily}`);
     if ((b.layoutMode ?? '') !== (a.layoutMode ?? ''))
       diffs.push(`레이아웃: ${b.layoutMode ?? 'NONE'} → ${a.layoutMode ?? 'NONE'}`);
+    if ((b.constraints ?? '') !== (a.constraints ?? ''))
+      diffs.push(`제약: ${b.constraints ?? '-'} → ${a.constraints ?? '-'}`);
+    if ((b.primaryAlignItems ?? '') !== (a.primaryAlignItems ?? ''))
+      diffs.push(`기본축 정렬: ${b.primaryAlignItems ?? '-'} → ${a.primaryAlignItems ?? '-'}`);
+    if ((b.counterAlignItems ?? '') !== (a.counterAlignItems ?? ''))
+      diffs.push(`교차축 정렬: ${b.counterAlignItems ?? '-'} → ${a.counterAlignItems ?? '-'}`);
+    if ((b.padding ?? '') !== (a.padding ?? ''))
+      diffs.push(`패딩: ${b.padding ?? '0/0/0/0'} → ${a.padding ?? '0/0/0/0'}`);
+    if ((b.itemSpacing ?? 0) !== (a.itemSpacing ?? 0))
+      diffs.push(`간격: ${b.itemSpacing ?? 0} → ${a.itemSpacing ?? 0}`);
+    if ((b.layoutAlign ?? '') !== (a.layoutAlign ?? ''))
+      diffs.push(`정렬(부모 내): ${b.layoutAlign ?? 'INHERIT'} → ${a.layoutAlign ?? 'INHERIT'}`);
+    if ((b.layoutGrow ?? 0) !== (a.layoutGrow ?? 0))
+      diffs.push(`늘이기(grow): ${b.layoutGrow ?? 0} → ${a.layoutGrow ?? 0}`);
+    if ((b.variantProps ?? '') !== (a.variantProps ?? ''))
+      diffs.push(`배리언트: ${b.variantProps ?? '-'} → ${a.variantProps ?? '-'}`);
+    if ((b.componentProps ?? '') !== (a.componentProps ?? ''))
+      diffs.push(`컴포넌트 속성: ${b.componentProps ?? '-'} → ${a.componentProps ?? '-'}`);
 
     if (diffs.length > 0) changes.push({ kind: 'CHANGED', path, details: diffs, nodeType: a.type });
   }
